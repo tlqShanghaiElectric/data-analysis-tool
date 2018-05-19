@@ -1288,7 +1288,7 @@ class CREATE_CANVAS():
         # Create a canvas to show plots -------------------------------------
         page = myMaster.myMaster.master
         width = page.winfo_reqwidth()
-        self.hostFig, self.ax = plt.subplots(figsize = (20,8), dpi = 60)
+        self.hostFig, self.ax = plt.subplots(figsize = (width,8), dpi = 60)
         self.hostFig.subplots_adjust(left = 0.08, right = 0.82)
         self.plotCanvas = FigureCanvasTkAgg(self.hostFig, master = myMaster.tab)
         self.plotCanvas.get_tk_widget().grid(row = 0, column = 0, 
