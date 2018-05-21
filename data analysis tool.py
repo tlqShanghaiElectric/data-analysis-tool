@@ -1298,6 +1298,8 @@ class CREATE_CANVAS():
                                    bbox_to_anchor= (0, 1.00),
                                    ncol = 3)
         
+    def configure(event):
+        
 
 # ----------------------------- Create a New Tab -----------------------------
 class NEW_TAB():
