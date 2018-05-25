@@ -58,7 +58,7 @@ class HomePage:
         # File cascade
         self.fileMenu    = tk.Menu(self.menuBar, tearoff=0)  
         self.menuBar.add_cascade(label = 'File', menu = self.fileMenu)
-        self.fileMenu.add_command(label='Add File', command = self.CALLBACK_OPEN_FILE)
+        self.fileMenu.add_command(label='Add File', command = self.CALLBACK_OPEN_FILE);  
         self.fileMenu.add_command(label='Add Folder', command = self.CALLBACK_OPEN_DIR)  
         #self.fileMenu.add_command(label='Save', command = self.CALLBACK_SAVE)  
         self.fileMenu.add_separator()  
@@ -75,7 +75,7 @@ class HomePage:
                          sticky = 'wesn')
         self.frame2 = tk.Frame(self.master); self.frame2.grid(row = 1, column = 1, 
                          rowspan = 2)   # figure frame
-        self.frame3 = tk.Frame(self.master) 
+        self.frame3 = tk.Frame(self.master); 
         self.frame3.grid(row = 0, column = 0, columnspan = 8, sticky = 'w')   # treeview
         
         
@@ -121,16 +121,16 @@ class HomePage:
         
         self.varList         = tk.Listbox(self.frame1, width = 25, height = 15,
                                      selectmode = tk.EXTENDED,
-                                     exportselection=0)
+                                     exportselection=0);
         self.varList.grid      (row = 9, column = 0, sticky = 'NSEW')
         
-        self.varScrolly       = tk.Scrollbar(self.frame1)
+        self.varScrolly       = tk.Scrollbar(self.frame1);
         self.varScrolly.grid    (row = 9, column = 0, 
                                  sticky = 'NSE')
         self.varList.config(yscrollcommand=self.varScrolly.set)
         self.varScrolly.config(command=self.varList.yview)
         
-        self.varScrollx       = tk.Scrollbar(self.frame1, orient=tk.HORIZONTAL)
+        self.varScrollx       = tk.Scrollbar(self.frame1, orient=tk.HORIZONTAL);
         self.varScrollx.grid    (row = 10, column = 0, sticky = 'WES')
         self.varList.config(xscrollcommand=self.varScrollx.set)
         self.varScrollx.config(command=self.varList.xview)
@@ -377,7 +377,7 @@ class HomePage:
     def CALLBACK_OPEN_FILE(self):
         fileNames = filedialog.askopenfilenames(title= "Select a file",
                                                 filetypes = [('.%' , '.%*'),
-                                                             ('all', '.*')])
+                                                             ('all', '.*')]);
         OPEN_FILE(self, fileNames)
 
             
@@ -1093,7 +1093,7 @@ class CALC_FFT:
         self.freq = []
         self.PD = []
         
-        win_hann = signal.get_window('hann', 1024)
+        win_hann = signal.get_window('hann', 1024);
         
         for i_data in range(0, len(data.data_y)):
             
@@ -1104,8 +1104,8 @@ class CALC_FFT:
                                                detrend = 'constant', 
                                                return_onesided = True,
                                                scaling = 'density')
-            self.freq.append(list(f))
-            self.PD.append(list(Pxx_den))
+            self.freq.append(list(f));
+            self.PD.append(list(Pxx_den));
 
         
 # ----------------------- Calculate statistic data -----------------
@@ -1152,7 +1152,7 @@ class LOAD_DOLLAR:
 
                     #Load data ------------------------------------------ 
                     #print(fileName)
-                    fodID = open(fileDir, 'rb')
+                    fodID = open(fileDir, 'rb');
                     if dataInfo_obj.dataType == '4':
                         readMethod = np.float32
                     else:
@@ -1166,7 +1166,7 @@ class LOAD_DOLLAR:
                                                  dataInfo_obj.timeStep* dataInfo_obj.len_vars, 
                                                  dataInfo_obj.timeStep))
                     
-                    fodID.close()
+                    fodID.close();
                     
                     # if convert unit?
                     if myMaster.varUnitList[select.sltId_vars[j_var]] in ['A','A/T', 'A/TT']:
@@ -1208,8 +1208,8 @@ class SELECTION:
 #            print(self.dirNames)
             
         # select vars in the listbox and get the file names
-        sltId_vars  = myMaster.varList.curselection()
-        self.varNames    = [myMaster.varList.get(i) for i in sltId_vars]
+        sltId_vars  = myMaster.varList.curselection();
+        self.varNames    = [myMaster.varList.get(i) for i in sltId_vars];
 #        print(self.varNames)
 
         # Re-mapping -------------------------------------------------------
@@ -1224,7 +1224,7 @@ class SELECTION:
 #        print(self.sltId_vars)
 
         # Variable Unit
-        self.varUnit    = [myMaster.varUnitList[i] for i in self.sltId_vars]
+        self.varUnit    = [myMaster.varUnitList[i] for i in self.sltId_vars];
        
         # y labels
         self.yLabel = []   
@@ -1287,9 +1287,11 @@ class CREATE_CANVAS():
     def __init__(self, myMaster):
         # Create a canvas to show plots -------------------------------------
         page = myMaster.myMaster.master
-        width = page.winfo_reqwidth()
-        self.hostFig, self.ax = plt.subplots(figsize = (width,8), dpi = 60)
-        self.hostFig.subplots_adjust(left = 0.08, right = 0.82)
+        width = (page.winfo_screenmmwidth() - 40) / 25.4
+        height = (page.winfo_screenmmheight() - 60) / 25.4 
+        self.hostFig, self.ax = plt.subplots(figsize = (width,height))
+#        self.hostFig, self.ax = plt.subplots(constrained_layout=True)
+        self.hostFig.subplots_adjust(left = 0.05)
         self.plotCanvas = FigureCanvasTkAgg(self.hostFig, master = myMaster.tab)
         self.plotCanvas.get_tk_widget().grid(row = 0, column = 0, 
                                 columnspan = 2, sticky = 'WEN')  
@@ -1297,8 +1299,6 @@ class CREATE_CANVAS():
                                    loc = 'lower left',
                                    bbox_to_anchor= (0, 1.00),
                                    ncol = 3)
-        
-    def configure(event):
         
 
 # ----------------------------- Create a New Tab -----------------------------
@@ -1481,7 +1481,7 @@ class READ_FILES_IN_CASE:
         master.num_filesInCase.append(int(len(fileNames)/2))
         
         for i in range(len(fileNames)):         # access each file .% + .$
-            x1 = regex_dollarFile.search(fileNames[i])
+            x1 = regex_dollarFile.search(fileNames[i]);
             if x1 != None:                      # if .% file
                #print(x1.group(1))
                 info_pctFile = LOAD_PERCENT(ParentDir_caseName + x1.group(1), master)   
@@ -1643,10 +1643,10 @@ class LOAD_PERCENT:
         
 # -------------------------------- Main loop ---------------------------
 if __name__ == '__main__':
-    Main = tk.Tk()
-    Main.resizable(width = True, height = True)
-    HomePage(Main)
-    Main.mainloop()
+    root = tk.Tk()
+    root.wm_state('zoomed')
+    HomePage(root)
+    root.mainloop()
            
     
 
