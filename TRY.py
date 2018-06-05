@@ -62,7 +62,7 @@ class HomePage:
         self.menuBar.add_cascade(label = 'File', menu = self.fileMenu)
         ## "Add file" is temporarily banned
         ## to be fixed...
-        self.fileMenu.add_command(label='Add File', command = self.CALLBACK_OPEN_FILE);  
+        self.fileMenu.add_command(label='Add File', command = self.CALLBACK_OPEN_FILE)
         self.fileMenu.add_command(label='Add Folder', command = self.CALLBACK_OPEN_DIR)  
         self.fileMenu.add_command(label='Save', command = self.CALLBACK_SAVE)  
         self.fileMenu.add_separator()  
@@ -75,11 +75,13 @@ class HomePage:
         
         
         # --------------------- Main menu frames --------------------------------------
-        self.frame1 = tk.Frame(self.master); self.frame1.grid(row = 1, column = 0, 
-                         sticky = 'wesn')
-        self.frame2 = tk.Frame(self.master); self.frame2.grid(row = 1, column = 1, 
-                         rowspan = 2)   # figure frame
-        self.frame3 = tk.Frame(self.master); 
+        self.frame1 = tk.Frame(self.master)
+        self.frame1.grid(row = 1, column = 0, sticky = 'wesn')
+
+        self.frame2 = tk.Frame(self.master)
+        self.frame2.grid(row = 1, column = 1, rowspan = 2)   # figure frame
+
+        self.frame3 = tk.Frame(self.master)
         self.frame3.grid(row = 0, column = 0, columnspan = 8, sticky = 'w')   # treeview
         
         
@@ -128,16 +130,16 @@ class HomePage:
         
         self.varList         = tk.Listbox(self.frame1, width = 25, height = 15,
                                      selectmode = tk.EXTENDED,
-                                     exportselection=0);
+                                     exportselection=0)
         self.varList.grid      (row = 9, column = 0, sticky = 'NSEW')
         
-        self.varScrolly       = tk.Scrollbar(self.frame1);
+        self.varScrolly       = tk.Scrollbar(self.frame1)
         self.varScrolly.grid    (row = 9, column = 0, 
                                  sticky = 'NSE')
         self.varList.config(yscrollcommand=self.varScrolly.set)
         self.varScrolly.config(command=self.varList.yview)
         
-        self.varScrollx       = tk.Scrollbar(self.frame1, orient=tk.HORIZONTAL);
+        self.varScrollx       = tk.Scrollbar(self.frame1, orient=tk.HORIZONTAL)
         self.varScrollx.grid    (row = 10, column = 0, sticky = 'WES')
         self.varList.config(xscrollcommand=self.varScrollx.set)
         self.varScrollx.config(command=self.varList.xview)
@@ -429,7 +431,7 @@ class HomePage:
     def CALLBACK_OPEN_FILE(self):
         fileNames = filedialog.askopenfilenames(title= "Select a file",
                                                 filetypes = [('.%' , '.%*'),
-                                                             ('all', '.*')]);
+                                                             ('all', '.*')])
         if fileNames is '':
             return
         else:
@@ -1362,7 +1364,7 @@ def calc_fft(data, i_data, NFFT, ovlp):
         NFFT = int(NFFT)
         win_len = NFFT
         win_overlap = float(ovlp)
-        win_hann = np.hanning(win_len);
+        win_hann = np.hanning(win_len)
         y = data.data_y[i_data]
         x = data.data_x[i_data]
         y -= np.mean(y)         #   remove DC term
@@ -1452,7 +1454,7 @@ class LOAD_DOLLAR:
 
                     #Load data ------------------------------------------ 
                     #print(fileName)
-                    fodID = open(fileDir, 'rb');
+                    fodID = open(fileDir, 'rb')
                     if dataInfo_obj.dataType == '4':
                         readMethod = np.float32
                     else:
@@ -1499,7 +1501,7 @@ class SELECTION:
     def __init__(self, myMaster):
         
         # select and get the directory
-        self.sltId_wholeDir = myMaster.dirTree.selection();
+        self.sltId_wholeDir = myMaster.dirTree.selection()
         if self.sltId_wholeDir == ():
             tk.messagebox.showerror('','Please select a directory.')
             return 0
@@ -1512,8 +1514,8 @@ class SELECTION:
                 );  
             
         # select vars in the listbox and get the file names
-        sltId_vars  = myMaster.varList.curselection();
-        self.varNames    = [myMaster.varList.get(i) for i in sltId_vars];
+        sltId_vars  = myMaster.varList.curselection()
+        self.varNames    = [myMaster.varList.get(i) for i in sltId_vars]
 
         ''' Re-mapping 
         The index(or indices) of the selected variable(s) in the filtered list 
@@ -1527,7 +1529,7 @@ class SELECTION:
         self.sltId_vars  = tuple(id_vars)
 
         # Variable Unit
-        self.varUnit    = [myMaster.varUnitList[i] for i in self.sltId_vars];
+        self.varUnit    = [myMaster.varUnitList[i] for i in self.sltId_vars]
        
         # y labels
         self.yLabel = []   
@@ -1596,11 +1598,12 @@ class CREATE_TOOLBAR():
 class CREATE_CANVAS():
     def __init__(self, myMaster):
         # Create a canvas to show plots -------------------------------------
-#        page = myMaster.myMaster.master
-#        width = (page.winfo_screenmmwidth() - 40) * 1.2/25.4
-#        height = (page.winfo_screenmmheight() - 60) * 1.2/25.4
-#        self.hostFig, self.ax = plt.subplots(figsize = (width, height))
-        self.hostFig, self.ax = plt.subplots(figsize = (19, 8), dpi = 60)
+        page = myMaster.myMaster.master
+        width = (page.winfo_screenmmwidth() - 40) / 25.4
+        height = (page.winfo_screenmmheight() - 40) / 25.4 * 0.8
+        print(page.winfo_screenmmwidth(), page.winfo_screenmmheight())
+        self.hostFig, self.ax = plt.subplots(figsize = (width, height))
+        # self.hostFig, self.ax = plt.subplots(figsize = (19, 8), dpi = 60)
         self.hostFig.subplots_adjust(left = 0.08, right = 0.82)
         self.plotCanvas = FigureCanvasTkAgg(self.hostFig, master = myMaster.tab)
         
@@ -1802,7 +1805,7 @@ class READ_FILES_IN_CASE:
         master.num_filesInCase.append(int(len(fileNames)/2))
         
         for i in range(len(fileNames)):         # access each file .% + .$
-            x1 = regex_dollarFile.search(fileNames[i]);
+            x1 = regex_dollarFile.search(fileNames[i])
             if x1 != None:                      # if .% file
                #print(x1.group(1))
                 info_pctFile = LOAD_PERCENT(ParentDir_caseName + x1.group(1), master)   
@@ -1964,10 +1967,10 @@ class LOAD_PERCENT:
         
 # -------------------------------- Main loop ---------------------------
 if __name__ == '__main__':
-    Main = tk.Tk()
-    Main.resizable(width = True, height = True)
-    HomePage(Main)
-    Main.mainloop()
+    root = tk.Tk()
+    root.wm_state('zoomed')
+    HomePage(root)
+    root.mainloop()
 
            
     
