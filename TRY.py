@@ -19,9 +19,17 @@ import matplotlib.ticker as tick
 import re
 import os
 import rainflow
-from calDel import *
+from calDel import calDel
+from DragAndDrop import DnD
 from prettyNum import prettyNum
 import pandas as pd
+from CrePlotVar import CrePlotVar
+from selection import selection_dir_var
+from load_dollar import load_dollar
+from load_percent import load_percent
+from calc_stat import calc_stat
+from keyword_filter import keyword_filter
+
 # ============================ Home Page of App =============================
 class HomePage:
 
@@ -30,23 +38,8 @@ class HomePage:
         plt.close('all')
         self.master = master
         self.master.title("SEDAP")
-
-        self.num_filesInCase = []    # a list, number of files in one case   
-        self.percentFileList = []    # save .% file names of all the loaded variables
-        self.varUnitList     = []    # a list, save variable unit
-
         self.list_tabs      = []    # Set of added tabs, a list of frames
-        self.num_tabs       = 0     # number of added tabs
-#        self.tab_current    = ''    # currently selected tab
-        
-        self.ParentDirList  = []    # a List, parent directory, 
-        self.list_num_vars  = []    # a list, number of variables in each read file
-        self.list_len_vars  = []    # a list, length of variables in each read file
-                                    # ...(Parent directory)/Groups/Cases/Files
-        self.GroupNameList  = []    # save loaded group names
-        self.CaseNameList   = []    # save loaded case names
         self.VarNameList    = []    # save loaded sensor names
-        
         self.varDict        = {}    # dictionary for looking up .$ file corresponding to variables to plot
         
         
@@ -62,16 +55,16 @@ class HomePage:
         self.menuBar.add_cascade(label = 'File', menu = self.fileMenu)
         ## "Add file" is temporarily banned
         ## to be fixed...
-        self.fileMenu.add_command(label='Add File', command = self.CALLBACK_OPEN_FILE);  
-        self.fileMenu.add_command(label='Add Folder', command = self.CALLBACK_OPEN_DIR)  
-        self.fileMenu.add_command(label='Save', command = self.CALLBACK_SAVE)  
+        self.fileMenu.add_command(label='Add File', command = self.callback_open_file);  
+        self.fileMenu.add_command(label='Add Folder', command = self.callback_open_dir)  
+        self.fileMenu.add_command(label='Save', command = self.callback_save)  
         self.fileMenu.add_separator()  
         self.fileMenu.add_command(label='Exit', command = self.CALLBACK_EXIT)  
         
         # About 
         self.aboutMenu   = tk.Menu(self.menuBar, tearoff = 0)
         self.menuBar.add_cascade(label = 'About', menu = self.aboutMenu)
-        self.aboutMenu.add_command(label = 'About', command = self.CALLBACK_ABOUT)
+        self.aboutMenu.add_command(label = 'About', command = self.callback_about)
         
         
         # --------------------- Main menu frames --------------------------------------
@@ -191,11 +184,11 @@ class HomePage:
         # Plot frequency domain
         self.popup_varList.add_command(label="Plot Spectrum", 
                                        background = 'cyan',
-                                       command=lambda: self.CALLBACK_PLOT(1))
+                                       command=lambda: self.callback_plot(1))
         
 
         # bind ---------------------------------------------------------------
-        self.varList.bind("<Button-3>", self.CALLBACK_VARLIST_POPUP)        
+        self.varList.bind("<Button-3>", self.callback_varlist_popup)        
         
         
      
@@ -206,37 +199,37 @@ class HomePage:
         self.filterLabel.grid  (row = 6, column = 0, sticky = 'w')
         self.filterEntry     = tk.Entry(self.frame1, textvariable = self.enterVar)
         self.filterEntry.grid  (row = 7, column = 0, sticky = 'we')
-        self.enterVar.trace("w", self.CALLBACK_FILTER)
+        self.enterVar.trace("w", self.callback_filter)
         
         
         # Create a button to plot time-domain signals ---------------------------------
-        self.varList.bind("<Double-Button-1>", lambda _: self.CALLBACK_PLOT(0))    
+        self.varList.bind("<Double-Button-1>", lambda _: self.callback_plot(0))    
         self.PlotTBut      = tk.Button(self.frame1, text = 'Plot Time', 
-                                  command = lambda: self.CALLBACK_PLOT(0), bg = 'green')
+                                  command = lambda: self.callback_plot(0), bg = 'green')
         self.PlotTBut.grid   (row = 13, column = 0, sticky = 'e')
         
         # Create a button to plot frequency-domain signals ----------------------------
         self.PlotFBut     = tk.Button(self.frame1, text = 'Plot Freq', 
-                                 command = lambda: self.CALLBACK_PLOT(1), bg = 'cyan')
+                                 command = lambda: self.callback_plot(1), bg = 'cyan')
         self.PlotFBut.grid  (row = 13, column = 0, sticky = 'w')
         
         # Create a button to RESET FILES --------------------------------------
         self.RESETBut     = tk.Button(self.frame1, 
                                       text = 'RESET', 
-                                      command = self.CALLBACK_RESET)
+                                      command = self.callback_reset)
         self.RESETBut.grid  (row = 14, column = 0, sticky = 'w')
 
         # Create a button to CLEAR PLOT --------------------------------------
         self.CLEAR_PLOTBut     = tk.Button(self.frame1, 
                                            text = 'Clear Plot', 
-                                           command = self.CALLBACK_CLEAR_PLOT)
+                                           command = self.callback_clear_plot)
         self.CLEAR_PLOTBut.grid  (row = 14, column = 0, sticky = 'e')
 
         
         # Create a button to create new tabs
         self.tab_create_but = tk.Button(self.frame1, 
                                         text = 'new tabs', 
-                                        command = self.CALLBACK_NEW_TAB)
+                                        command = self.callback_new_tab)
         self.tab_create_but.grid(row = 6, column = 0, sticky = 'ne')
         
         
@@ -267,12 +260,12 @@ class HomePage:
         self.tabMenu.grid(row = 0, column = 0, sticky = 'w')
         
         # create the first tab
-        self.list_tabs.append(NEW_TAB(self))
+        self.list_tabs.append(NewTab(self))
         self.tab_current = self.list_tabs[self.tabMenu.index('current')]
-        self.data_custom_x  = CUSTOM_X(self)
+#        self.data_custom_x  = CUSTOM_X(self)
         # When the current tab is changed
-        self.tabMenu.bind("<<NotebookTabChanged>>", self.CALLBACK_SELECT_TAB)
-        self.tabMenu.bind("<Double-Button-1>", self.CALLBACK_DEL_TAB)
+        self.tabMenu.bind("<<NotebookTabChanged>>", self.callback_select_tab)
+        self.tabMenu.bind("<Double-Button-1>", self.callback_new_tab)
         
         
         
@@ -281,15 +274,17 @@ class HomePage:
         self.popup_canvas  = tk.Menu(self.tab_current.tab, tearoff = 0)                
         # axis setting  ----------------------------------------------------
         self.popup_canvas.add_command(label="Axis setting",
-                                       command=self.CALLBACK_AXIS_SETTING_POPUP)
+                                       command=self.callback_axis_set_popup)
         # show max./min.  ----------------------------------------------------
         self.popup_canvas.add_command(label="Show Max./Min.",
                                        command=self.callback_show_max_min)        
+        # plot frequency domain ----------------------------------------------
+        self.popup_canvas.add_command(label="Plot Spectrum",background = 'cyan',
+                                       command=self.callback_local_fft) 
         
         self.tab_current.canvas.plotCanvas.get_tk_widget().bind("<Button-3>", 
                                                         self.CALLBACK_CANVAS_POPUP)
-        
-        
+
         ''' ----------------------- Frame 3 ---------------------- '''
         # Create statistics table (treeview)
         self.statList = CREATE_STAT(self.frame3)
@@ -312,11 +307,11 @@ class HomePage:
         for f in files:
             if os.path.isfile(f):
                 f = f.replace('/','\\')
-                OPEN_FILE(self, (f,))
+                open_file(self, (f,))
             else:
                 if os.path.isdir(f):
                     f = f.replace('/','\\')
-                    OPEN_DIR(self, f)
+                    open_dir(self, f)
                 else:
                     tk.messagebox.showerror('Please select a correct file/folder!')
    
@@ -324,24 +319,48 @@ class HomePage:
     
     # -------------------- Delete a directory in treeview --------------------
     # To be continued ...
-    def CALLBACK_delete_tree(self):
-        self.dirTree.delete(self.dirTree.selection())
-        
-        dirNames    = self.dirTree.get_children()
-        caseNames   = self.dirTree.get_children(dirNames)
-        dirNames    = [self.dirTree.item(i_dir)['text'] for i_dir in dirNames]
-        caseNames   = [self.dirTree.item(i_case)['text'] for i_case in caseNames]
-        self.varList.delete(0, tk.END)
+#    def CALLBACK_delete_tree(self):
+#        self.dirTree.delete(self.dirTree.selection())
+#        
+#        dirNames    = self.dirTree.get_children()
+#        caseNames   = self.dirTree.get_children(dirNames)
+#        dirNames    = [self.dirTree.item(i_dir)['text'] for i_dir in dirNames]
+#        caseNames   = [self.dirTree.item(i_case)['text'] for i_case in caseNames]
+#        self.varList.delete(0, tk.END)
 #        for i_dir in dirNames:
 #            for i_case in caseNames:
 #                folderName = i_dir + '/' + i_case
-#                OPEN_DIR(self, folderName)
+#                open_dir(self, folderName)
         
+    # --------------- local fft  -------------------
+    def callback_local_fft(self):
+        from local_fft import local_fft
+        local_fft(self)
         
     # ----------------------- Axis setting pop-up window --------------------
-    def CALLBACK_AXIS_SETTING_POPUP(self):
-        self.axis_popup = AXIS_SETTING_POPUP(self)    
+    def callback_axis_set_popup(self):
+        self.axis_popwin = axis_set_popup(self)    
 
+    # ------------------------ Refresh axis settings ----------------            
+    def callback_refresh_axis(self):
+        combobox    = self.axis_popwin.axisCombobox
+        if combobox.get() == 'All':
+            """ iterate all axes """
+        else:
+            slt_axis = combobox.get()
+            print(slt_axis)
+            
+                    
+#        id_axis     = self.axis_popup.axisCombobox.current()
+#        if not self.tab_current.Plot_obj_List == []:
+#            if self.axis_popup.axisCombobox.get() != 'All':
+#                self.tab_current.Plot_obj_List[id_axis].AXIS_SET()
+#            else:
+#                i_data_begin = 0
+#                i_data_end   = len(self.tab_current.Plot_obj_List)
+#                for i_data in range(i_data_begin, i_data_end):
+#                    self.tab_current.Plot_obj_List[i_data].AXIS_SET()
+                    
     # ----------------------- Show max/min ---------------------------------
     def callback_show_max_min(self):
         show_max_min(self.tab_current)
@@ -363,7 +382,7 @@ class HomePage:
         cpydirs = self.master.clipboard_get()
         cpydirs = cpydirs.split()
         for i_cpydir in cpydirs:
-            OPEN_DIR(self, i_cpydir)
+            open_dir(self, i_cpydir)
      
     # ----------------------- Unit conversion ------------------------------
     def CALLBACK_UNIT_CONVERSION(self, *arg):
@@ -376,16 +395,19 @@ class HomePage:
 
 
     def CALLBACK_UNSET_AS_X(self):
-        self.data_custom_x.UNSET_AS_X()
+#        self.data_custom_x.UNSET_AS_X()
+        pass
 
 
-    # ------------ Directory treeview Right-click-pop-up Event ----------------
+    # ------------ Canvas Right-click-pop-up Event ----------------
     def CALLBACK_CANVAS_POPUP(self, event):
         try:
             self.popup_canvas.tk_popup(event.x_root, event.y_root, 0)
         finally:
             self.popup_canvas.grab_release()
-            
+    
+
+    
     # ------------ Directory treeview Right-click-pop-up Event ----------------
     def CALLBACK_DIRTREE_POPUP(self, event):
         try:
@@ -394,50 +416,50 @@ class HomePage:
             self.popup_dirTree.grab_release()
 
     # ----------------- Var list Right-click-pop-up Event ---------------------
-    def CALLBACK_VARLIST_POPUP(self, event):
+    def callback_varlist_popup(self, event):
         try:
             self.popup_varList.tk_popup(event.x_root, event.y_root, 0)
         finally:
             self.popup_varList.grab_release()
             
     # ----------------------- Delete a Tab ---------------------------------
-    def CALLBACK_DEL_TAB(self, *arg):
+    def callback_del_tab(self, *arg):
         if len(self.tabMenu.tabs()) > 1:
-            self.num_tabs -= 1
             self.list_tabs.pop(self.tabMenu.index('current'))
             self.tabMenu.forget(self.tabMenu.index('current'))
 
 
     # ---------------------------- Select the Current Tab --------------------
     # This function could be abandonded in the future
-    def CALLBACK_SELECT_TAB(self, *arg):
+    def callback_select_tab(self, *arg):
         self.tab_current = self.list_tabs[self.tabMenu.index('current')] 
         tab = self.tab_current
-        update_stat_del(tab)       
+        if tab.plot_varobjs is not []:
+            update_stat_del(tab)       
     
     # ------------------------------ Open a folder ----------------------------
-    def CALLBACK_OPEN_DIR(self):
+    def callback_open_dir(self):
         folderName = filedialog.askdirectory(title = 'Select a directory')
         if folderName is '':
             return 
         else:
             folderName = folderName.replace('/', '\\')
-            OPEN_DIR(self, folderName)
+            open_dir(self, folderName)
 
         
     # ------------------------------ Open a file -----------------------------
-    def CALLBACK_OPEN_FILE(self):
+    def callback_open_file(self):
         fileNames = filedialog.askopenfilenames(title= "Select a file",
                                                 filetypes = [('.%' , '.%*'),
                                                              ('all', '.*')]);
         if fileNames is '':
             return
         else:
-            OPEN_FILE(self, fileNames)
+            open_file(self, fileNames)
 
             
     # ------------------------------- Save a file-----------------------
-    def CALLBACK_SAVE(self):
+    def callback_save(self):
         save_data(self.tab_current)
 
     # ------------------------------- Exit -----------------------
@@ -446,258 +468,179 @@ class HomePage:
         self.master.destroy()   
     
     # ------------------------ Save axis settings -------------------
-    def CALLBACK_SAVE_AXIS(self, *arg):
+    def callback_save_axis(self, *arg):
         SAVE_AXIS(self)
-
-        
-    # ------------------------ Refresh axis settings ----------------            
-    def CALLBACK_REFRESH_AXIS(self):
-        id_axis     = self.axis_popup.axisCombobox.current()
-#        self.select = SELECTION(self) 
-        if not self.tab_current.Plot_obj_List == []:
-            if self.axis_popup.axisCombobox.get() != 'All':
-                self.tab_current.Plot_obj_List[id_axis].AXIS_SET()
-            else:
-                i_data_begin = 0
-                i_data_end   = len(self.tab_current.Plot_obj_List)
-                for i_data in range(i_data_begin, i_data_end):
-                    self.tab_current.Plot_obj_List[i_data].AXIS_SET()
             
     # ------------------------ Refresh axis settings ----------------            
-    def CALLBACK_ABOUT(self):
-        tk.messagebox.showinfo('About', 'Author: CAI Jiasi, Tang Laiquan\n' + 
-                                        'Last update: 2018/5/31\n' + 
+    def callback_about(self):
+        tk.messagebox.showinfo('About', 'Author: Cai Jiasi, Tang Laiquan\n' + 
+                                        'Last update: 2018/6/6\n' + 
                                         'EMail: caijs@shanghai-electric.com\n' +
                                         '       tanglq2@shanghai-electric.com')
 
-    # ------------------------ PLOT Time-domain ---------------------     
-    # This callback function needs to be well organized !!!      
-    def CALLBACK_PLOT(self, plotFFT):
+    """ Plot function """
+    def callback_plot(self, plotFFT):
         
-        if self.hold_on_var.get() == 0 and self.tab_current.custom_x == 0:
-            self.CALLBACK_CLEAR_PLOT()
-            
+        tab = self.tab_current
         
-        # Selection ----------------------------------------------
-        select_obj = SELECTION(self)
-        if self.check_dir(select_obj) == 0:
-            return 0
-        self.tab_current.YLabels += select_obj.yLabel
-        
-        # Load .$ files ------------------------------------------
-        data_obj = LOAD_DOLLAR(self, select_obj)
-        self.tab_current.data.append(data_obj)
-        
+        if self.hold_on_var.get() == 0 and tab.custom_x == 0:
+            self.callback_clear_plot()
       
-        # Y axis flag, 1 if this kind of sensor has been plotted, 0 for not
-        flag = [0 for i in range(0, len(select_obj.varNames))]
-        for select_var in select_obj.varNames:
-            if select_var in self.tab_current.names_sensor:
-                flag[select_obj.varNames.index(select_var)] = 1
-
-        # Calculate statistics ------
-        CALC_STAT(self.tab_current, data_obj)
+        """ Selection """
+        dirnames, varnames, ylabels, varlist_ids = selection_dir_var(self)
         
-        # Calculate DEL ------------- 
-        n = 64
-        m = np.arange(3,13)
-        life = 25
-        t_in_year = 100
-        n_sel = len(select_obj.sltId_vars)
-        
-        for i in range(0, n_sel):
-            
-            if data_obj.unit[i] in ['F','FL']:
+        for i_dir in dirnames:
+            i = 0
+            for i_var in varnames:
+                plot_var        = CrePlotVar()
+                plot_var.dir    = i_dir
+                plot_var.var    = i_var
+                plot_var.mytab  = tab
+                plot_var.id_var = varlist_ids[i]                
+                plot_var.ylabel = ylabels[i_dir][i]
+                plot_var.in_file= self.varDict[i_var]
+                tab.plot_varobjs.append(plot_var)
+                i += 1
                 
-                T = data_obj.step[i]*(len(data_obj.data_x[i])-1)
-                x = data_obj.data_y[i]
-                DEL = calDel(x, m, life, t_in_year, T)
-                self.tab_current.DEL.append(DEL)
+                """ Load .% files """
+                percent_file_info = load_percent(plot_var.in_file, plot_var)
                 
-                for mi in range(0,len(m)):
-                    self.delTable.insert('', tk.END,
-                                         text = m[mi],
-                                         values = ('{:6.3e}'.format(self.tab_current.DEL[i][mi])))
-        
-        
-        # plot time-domain ----------
-        if plotFFT == 0:
-            for i_axis in range(0, len(flag)):
-                # Create plot object; one sensor, one y-axis, one object -----
-                i_data = i_axis
-                plot_data_obj = PLOT_DATA(self, self.tab_current, data_obj, select_obj)    
-
-                while i_data < len(data_obj.data_y): 
-                    # plot
-                    if self.tab_current.custom_x == 0:
-                        plot_data_obj.PLOT_T(i_data, i_axis, flag)
+                """ Load .$ files """
+                load_dollar(plot_var, percent_file_info, self)
+                
+                """ Calculate statistics """
+                calc_stat(tab, plot_var)
+                
+                """ Calculate DEL """
+                n = 64
+                m = np.arange(3,13)
+                life = 25
+                t_in_year = 100
+    
+                if plot_var.unit in ['F','FL']:
+                    
+                    T = plot_var.step*(len(plot_var.data_x)-1)
+                    DEL = calDel(plot_var.data_y, m, life, t_in_year, T)
+                    plot_var.DEL = DEL
+#                    tab.DEL.append(DEL)
+                    
+                    for mi in range(0,len(m)):
+                        self.delTable.insert('', tk.END,
+                             text = m[mi],
+                             values = ('{:6.3e}'.format(plot_var.DEL[mi])))                        
                         
-                    else:
-                        # if there is a customized x axis
-                        plot_data_obj.PLOT_T(i_data, i_axis, flag, self.data_custom_x)
+                """ --- plot time domain --- """
+                if plotFFT == 0:
+                    plot_var._plot_t()
+                    """ legend and update """
+                    tab.canvas.ax.legend(handles = tab.lns, 
+                                           loc = 'lower left',
+                                           bbox_to_anchor= (0, 1.00),
+                                           ncol = 3) 
+                    tab.toolbar.toolbar.update()  
+                    tab.canvas.plotCanvas.draw()
                     
-                    i_data += len(select_obj.varNames)
-                    self.tab_current.lns.append(plot_data_obj.f_handle)
-                    
-                    if flag[i_axis] == 0:
-                        flag[i_axis] = 1
-                    # add plot objects into list
-                    self.tab_current.Plot_obj_List.append(plot_data_obj)                        
-            self.tab_current.canvas.ax.legend(handles = self.tab_current.lns, 
-                                                   loc = 'lower left',
-                                                   bbox_to_anchor= (0, 1.00),
-                                                   ncol = 3)
-            
-            # Update Combobox -----------
-            self.tab_current.UPDATE_PLOTTEDVARS(select_obj)
-#            # Update combobox values ----
-#            self.axisCombobox['value'] = \
-#            tuple(self.tab_current.names_sensor) 
-            
-            # Remember to update the canvas and toolbar!    
-            # ThE ORDER OF THE FOLLOWING TWO LINES MATTERS !!!
-            self.tab_current.toolbar.toolbar.update()  
-            self.tab_current.canvas.plotCanvas.draw()
-
-
-        # plot frequency-domain  -----  
-        else:
-            for i_axis in range(0, len(flag)):
-                # Create plot object; one sensor, one y-axis, one object -----
-                i_data = i_axis
-                plot_data_obj = PLOT_DATA(self, self.tab_current, data_obj, select_obj)    
-
-                while i_data < len(data_obj.data_y): 
-                    # plot
-                    plot_data_obj.PLOT_FFT(i_data, i_axis, flag)
-                    i_data += len(select_obj.varNames)
-                    self.tab_current.lns.append(plot_data_obj.f_handle)
-                    
-                    if flag[i_axis] == 0:
-                        flag[i_axis] = 1
-                    # add plot objects into list
-                    self.tab_current.Plot_obj_List.append(plot_data_obj)                        
-            self.tab_current.canvas.ax.legend(handles = self.tab_current.lns, 
-                                                   loc = 'lower left',
-                                                   bbox_to_anchor= (0, 1.00),
-                                                   ncol = 3)
-            # Remember to update the canvas and toolbar!    
-            # ThE ORDER OF THE FOLLOWING TWO LINES MATTERS !!!
-            self.tab_current.toolbar.toolbar.update()  
-            self.tab_current.canvas.plotCanvas.draw()
-            
-
-        
-        
-        
-
-    # ------------------------ Check directory ----------------------            
-    def check_dir(self, select):
-        for j_dirName in  select.dirNames:
-            for j_var in range(0, len(select.sltId_vars)):
-                try:
-                    filePrefix = [x for x in os.listdir(j_dirName)
-                                  if '.$pj' in x.lower()][0].rsplit('.', 1)[-2]
-                except IndexError:
-                    tk.messagebox.showerror('','Select a directory!')
-                    return 0
-                    
-                except OSError:
-                    tk.messagebox.showerror('','Select a case!')
-                    return 0
-
+                """ --- plot frequency domain --- """
+                """ calculation range, i.e. window size """
+                xlim    = plot_var.mytab.canvas.ax.get_xlim()
+                if plotFFT == 1:
+                    plot_var._plot_fft(xlim)
+                    tab.canvas.ax.legend(handles = tab.lns, 
+                                           loc = 'lower left',
+                                           bbox_to_anchor= (0, 1.00),
+                                           ncol = 3) 
+                    tab.toolbar.toolbar.update()  
+                    tab.canvas.plotCanvas.draw()                   
         
     # ------------------------ Reset rRead Files ----------------------            
-    def CALLBACK_RESET(self):
-        reset_obj = RESET(self)
-        reset_obj.RESET_READ_FILES()
+    def callback_reset(self):
+        reset_read_files(self)
+
     # ---------------------------- Clear Plot ---------------------------            
-    def CALLBACK_CLEAR_PLOT(self):
-        reset_obj = RESET(self)
-        reset_obj.RESET_PLOT()
+    def callback_clear_plot(self):
+        reset_plot(self.tab_current)
         
     # -------------------------- Create a new tab -------------------            
-    def CALLBACK_NEW_TAB(self):
-        self.list_tabs.append(NEW_TAB(self))
+    def callback_new_tab(self):
+        self.list_tabs.append(NewTab(self))
         self.tab_current = self.list_tabs[self.tabMenu.index('current')]
-        self.data_custom_x  = CUSTOM_X(self)
+#        self.data_custom_x  = CUSTOM_X(self)
         # When the current tab is changed
-        self.tabMenu.bind("<<NotebookTabChanged>>", self.CALLBACK_SELECT_TAB)
-        self.tabMenu.bind("<Double-Button-1>", self.CALLBACK_DEL_TAB)
+        self.tabMenu.bind("<<NotebookTabChanged>>", self.callback_select_tab)
+        self.tabMenu.bind("<Double-Button-1>", self.callback_del_tab)
         
         
         # Right-click popup menu ----------------------------------------
         self.popup_canvas  = tk.Menu(self.tab_current.tab, tearoff = 0)                
         # axis setting  ----------------------------------------------------
         self.popup_canvas.add_command(label="Axis setting",
-                                       command=self.CALLBACK_AXIS_SETTING_POPUP)
+                                       command=self.callback_axis_set_popup)
         # show max./min.  ----------------------------------------------------
         self.popup_canvas.add_command(label="Show Max./Min.",
                                        command=self.callback_show_max_min)        
-        
+        # plot frequency domain ----------------------------------------------
+        self.popup_canvas.add_command(label="Plot Spectrum",background = 'cyan',
+                                       command=self.callback_local_fft) 
         self.tab_current.canvas.plotCanvas.get_tk_widget().bind("<Button-3>", 
                                                         self.CALLBACK_CANVAS_POPUP)   
         
-    def CALLBACK_FILTER(self, *arg):
+    def callback_filter(self, *arg):
         # this *arg must be added though Idk why
-        FILTER(self, self.enterVar, self.varList)
+        keyword_filter(self)
         
     
-''' =========================  Classes of Functions ===================== '''
+''' =========================  Functions ===================== '''
+
 ''' save data '''
 def save_data(tab):
-    ''' 
-    tab.data, a list of data objects including:
-        data_x, a list of x-axis data
-        data_y, a list of y-axis data
-    '''
+
     fn = filedialog.asksaveasfilename(title= "Save a file",
                                      defaultextension = ".txt",
                                      filetypes = [('text', '.txt')],
                                      confirmoverwrite = True)
-    if fn is None:
+    if fn is '':
         return
-    
-    data2save = {}
-    for i_data in tab.data:
-        i_d = tab.data.index(i_data)
-        for i_c in range(0,len(i_data.data_x)):
-            header = 'time-' + str(i_d) +'-' + str(i_c)
-            data2save[header] = np.array(i_data.data_x[i_c])
-            header = i_data.ylabel[i_c]
-            data2save[header] = np.array(i_data.data_y[i_c])
-    
-    df = pd.DataFrame(data = data2save, columns = list(data2save.keys()))
-    df.to_csv(fn, sep = '\t', float_format = '%12.2f', index = False)
+    else:
+        data2save = {}
+        for i_varobj in tab.plot_varobjs:
+            header = 'time-' + i_varobj.ylabel
+            data2save[header] = np.array(i_varobj.data_x)
+            header = i_varobj.ylabel
+            data2save[header] = np.array(i_varobj.data_y)
+        
+        df = pd.DataFrame(data = data2save, columns = list(data2save.keys()))
+        df.to_csv(fn, sep = '\t', float_format = '%15.2f', index = False)
 
     
 ''' update statistics table and DEL table '''
 def update_stat_del(tab):
     
-    tab.CALLBACK_CLEAR_STAT()   # clear statistics list
+    tab.callback_clear_stat()   # clear statistics list
+    tab.clear_del()
     
-    for i in range(0, len(tab.lns)):
-        _t_max  = tab.stat_val[i][0]
-        _max    = tab.stat_val[i][1]            
-        _t_min  = tab.stat_val[i][2]
-        _min    = tab.stat_val[i][3]
-        _mean   = tab.stat_val[i][4]
-        _std    = tab.stat_val[i][5]
+    for i_varobj in tab.plot_varobjs:
+        t_max_  = i_varobj.t_max_
+        max_    = i_varobj.max_
+        t_min_  = i_varobj.t_min_
+        min_    = i_varobj.min_
+        mean_   = i_varobj.mean_
+        std_    = i_varobj.std_
         
         tab.myMaster.statList.statTree.insert('', tk.END, 
-                                     text = '{:6.3e}'.format(_mean),
-                                      values = ('{:6.3e}'.format(_max),
-                                                '{:6.3e}'.format(_min),
-                                                '{:6.3e}'.format(_std),
-                                                '{0:.2f}'.format(_t_max),
-                                                '{0:.2f}'.format(_t_min)))
-    tab.clear_del()
-    m = np.arange(3,13)
-    for i in range(0, len(tab.DEL)):
-        for mi in range(0,len(m)):
-            tab.myMaster.delTable.insert('', tk.END,
-                                         text = m[mi],
-                                         values = ('{:6.3e}'.format(tab.DEL[i][mi])))
+                                      text   = '{:6.3e}'.format(mean_),
+                                      values = ('{:6.3e}'.format(max_),
+                                                '{:6.3e}'.format(min_),
+                                                '{:6.3e}'.format(std_),
+                                                '{0:.2f}'.format(t_max_),
+                                                '{0:.2f}'.format(t_min_)))
+        try:
+            m = np.arange(3,13)
+            for mi in range(0,len(m)):
+                tab.myMaster.delTable.insert('', tk.END,
+                                 text = m[mi],
+                                 values = ('{:6.3e}'.format(i_varobj.DEL[mi])))
+        except AttributeError:
+            pass
         
 ''' create DEL table (treeview) '''
 def create_del(frame):
@@ -722,11 +665,11 @@ def create_del(frame):
 ''' ------------------------ Calculate max/min values ------------------- '''
 def cal_max_min(data_x, data_y):
 
-    _max    = data_y.max()
-    _min    = data_y.min()
+    max_    = data_y.max()
+    min_    = data_y.min()
     
-    ind_max = data_y.tolist().index(_max)
-    ind_min = data_y.tolist().index(_min)
+    ind_max = data_y.tolist().index(max_)
+    ind_min = data_y.tolist().index(min_)
     
 
     x_max, y_max, x_min, y_min  =   data_x[ind_max], \
@@ -740,156 +683,137 @@ def cal_max_min(data_x, data_y):
 def show_max_min(tab):
     
     # if partly shown and hidden, all lines are shown firstly.
-    sum_logic = sum(i_plot._max.get_visible() for i_plot in tab.Plot_obj_List)
+    sum_logic = sum(i_plot.max_.get_visible() for i_plot in tab.Plot_obj_List)
     
     
     if  sum_logic < len(tab.Plot_obj_List) and sum_logic > 0:
         for i_plot in tab.Plot_obj_List:
-            i_plot._max.set_visible(1)
-            i_plot._min.set_visible(1)
+            i_plot.max_.set_visible(1)
+            i_plot.min_.set_visible(1)
             i_plot._max_vline.set_visible(1)
             i_plot._min_vline.set_visible(1)
 
     else:
         for i_plot in tab.Plot_obj_List:
-            i_plot._max.set_visible(not i_plot._max.get_visible())
-            i_plot._min.set_visible(not i_plot._min.get_visible())
+            i_plot.max_.set_visible(not i_plot.max_.get_visible())
+            i_plot.min_.set_visible(not i_plot.min_.get_visible())
             i_plot._max_vline.set_visible(not i_plot._max_vline.get_visible())
             i_plot._min_vline.set_visible(not i_plot._min_vline.get_visible())
         
     tab.canvas.plotCanvas.draw()
         
-        
-# ------------------------- Axis setting pop-up window ----------------------
-class AXIS_SETTING_POPUP:
-    def __init__(self, main):
-        self.master = main
-        self.axis_set_popup = tk.Toplevel()
-        self.axis_set_popup.title('Axis setting')
-        
-        self.axis_set()
 
+
+""" Axis-setting pop-up window"""
+def axis_set_popup(mainpage):
+    pop_win = tk.Toplevel()
+    pop_win.title('Axis setting')
+
+    """ Axis settings """
+    """ Combobox """
+    axisRefreshBut  = tk.Button(pop_win, text = 'Refresh', 
+                                     command = mainpage.callback_refresh_axis)
+    axisRefreshBut.grid(row = 1, column = 5, 
+                             rowspan = 2, sticky = 'wens')
+    axisCombobox    = ttk.Combobox(pop_win)
+    axisCombobox.grid(row = 0, column = 0, 
+                           columnspan = 4, sticky = 'we')  
+    """ Axis ranges frame """
+    yMax       = tk.StringVar()
+    yMin       = tk.StringVar()
+    xMax       = tk.StringVar()
+    xMin       = tk.StringVar()
+    """ y-axis max """
+    yMaxLabel     = tk.Label(pop_win, text = 'y-axis max', width = 10)
+    yMaxLabel.grid  (row = 1, column = 2, sticky = 'nw')
+    yMaxEntry     = tk.Entry(pop_win, width = 10, textvariable = yMax)
+    yMaxEntry.grid  (row = 1, column = 1, sticky = 'nw')
+    """ y-axis min """
+    yMinLabel     = tk.Label(pop_win, text = 'y-axis min', width = 10)
+    yMinLabel.grid  (row = 2, column = 2, sticky = 'nw')
+    yMinEntry     = tk.Entry(pop_win, width = 10, textvariable = yMin)
+    yMinEntry.grid  (row = 2, column = 1, sticky = 'nw')
+    """ x-axis max """
+    xMaxLabel     = tk.Label(pop_win, text = 'x-axis max', width = 10)
+    xMaxLabel.grid  (row = 1, column = 4, sticky = 'nw')
+    xMaxEntry     = tk.Entry(pop_win, width = 10, textvariable = xMax)
+    xMaxEntry.grid  (row = 1, column = 3, sticky = 'nw')
+    """ x-axis min """
+    xMinLabel     = tk.Label(pop_win, text = 'x-axis min', width = 10)
+    xMinLabel.grid  (row = 2, column = 4, sticky = 'nw')
+    xMinEntry     = tk.Entry(pop_win, width = 10, textvariable = xMin)
+    xMinEntry.grid  (row = 2, column = 3, sticky = 'nw')
+    yMax.trace('w', mainpage.callback_save_axis)
+    yMin.trace('w', mainpage.callback_save_axis)
+    xMax.trace('w', mainpage.callback_save_axis)
+    xMin.trace('w', mainpage.callback_save_axis)
+    
+    """ Combobox values """
+    sensor_names = []
+    for i_varobj in mainpage.tab_current.plot_varobjs:
+        sensor_names.append(i_varobj.var)
+    sensor_names.append('All')
+    axisCombobox['value'] = sensor_names
+    
+    
+    return pop_win
+
+    
+    
+## ------------------------- Axis setting pop-up window ----------------------
+#class axis_set_popup:
+#    def __init__(self, main):
+#        self.master = main
+#        self.axis_set_popup = tk.Toplevel()
+#        self.axis_set_popup.title('Axis setting')
+#        
+#        self.axis_set()
+#
+#        
+#    def axis_set(self):
+#        # Axis settings -------------------------------------------------------------     
+#        # Combobox
+#        self.axisRefreshBut  = tk.Button(self.axis_set_popup, text = 'Refresh', 
+#                                         command = self.master.callback_refresh_axis)
+#        self.axisRefreshBut.grid(row = 1, column = 5, 
+#                                 rowspan = 2, sticky = 'wens')
+#        self.axisCombobox    = ttk.Combobox(self.axis_set_popup)
+#        self.axisCombobox.grid(row = 0, column = 0, 
+#                               columnspan = 4, sticky = 'we')  
+#        # Axis ranges frame --------------------------------------------------
+#        self.yMax       = tk.StringVar()
+#        self.yMin       = tk.StringVar()
+#        self.xMax       = tk.StringVar()
+#        self.xMin       = tk.StringVar()
+#        # y-axis max
+#        self.yMaxLabel     = tk.Label(self.axis_set_popup, text = 'y-axis max', width = 10)
+#        self.yMaxLabel.grid  (row = 1, column = 2, sticky = 'nw')
+#        self.yMaxEntry     = tk.Entry(self.axis_set_popup, width = 10, textvariable = self.yMax)
+#        self.yMaxEntry.grid  (row = 1, column = 1, sticky = 'nw')
+#        # y-axis min
+#        self.yMinLabel     = tk.Label(self.axis_set_popup, text = 'y-axis min', width = 10)
+#        self.yMinLabel.grid  (row = 2, column = 2, sticky = 'nw')
+#        self.yMinEntry     = tk.Entry(self.axis_set_popup, width = 10, textvariable = self.yMin)
+#        self.yMinEntry.grid  (row = 2, column = 1, sticky = 'nw')
+#        # x-axis max
+#        self.xMaxLabel     = tk.Label(self.axis_set_popup, text = 'x-axis max', width = 10)
+#        self.xMaxLabel.grid  (row = 1, column = 4, sticky = 'nw')
+#        self.xMaxEntry     = tk.Entry(self.axis_set_popup, width = 10, textvariable = self.xMax)
+#        self.xMaxEntry.grid  (row = 1, column = 3, sticky = 'nw')
+#        # x-axis min
+#        self.xMinLabel     = tk.Label(self.axis_set_popup, text = 'x-axis min', width = 10)
+#        self.xMinLabel.grid  (row = 2, column = 4, sticky = 'nw')
+#        self.xMinEntry     = tk.Entry(self.axis_set_popup, width = 10, textvariable = self.xMin)
+#        self.xMinEntry.grid  (row = 2, column = 3, sticky = 'nw')
+#        self.yMax.trace('w', self.master.CALLBACK_SAVE_AXIS)
+#        self.yMin.trace('w', self.master.CALLBACK_SAVE_AXIS)
+#        self.xMax.trace('w', self.master.CALLBACK_SAVE_AXIS)
+#        self.xMin.trace('w', self.master.CALLBACK_SAVE_AXIS)
+#        
+#        # Combobox values
+#        self.axisCombobox['value'] = self.master.tab_current.names_sensor 
         
-    def axis_set(self):
-        # Axis settings -------------------------------------------------------------     
-        # Combobox
-        self.axisRefreshBut  = tk.Button(self.axis_set_popup, text = 'Refresh', 
-                                         command = self.master.CALLBACK_REFRESH_AXIS)
-        self.axisRefreshBut.grid(row = 1, column = 5, 
-                                 rowspan = 2, sticky = 'wens')
-        self.axisCombobox    = ttk.Combobox(self.axis_set_popup)
-        self.axisCombobox.grid(row = 0, column = 0, 
-                               columnspan = 4, sticky = 'we')  
-        # Axis ranges frame --------------------------------------------------
-        self.yMax       = tk.StringVar()
-        self.yMin       = tk.StringVar()
-        self.xMax       = tk.StringVar()
-        self.xMin       = tk.StringVar()
-        # y-axis max
-        self.yMaxLabel     = tk.Label(self.axis_set_popup, text = 'y-axis max', width = 10)
-        self.yMaxLabel.grid  (row = 1, column = 2, sticky = 'nw')
-        self.yMaxEntry     = tk.Entry(self.axis_set_popup, width = 10, textvariable = self.yMax)
-        self.yMaxEntry.grid  (row = 1, column = 1, sticky = 'nw')
-        # y-axis min
-        self.yMinLabel     = tk.Label(self.axis_set_popup, text = 'y-axis min', width = 10)
-        self.yMinLabel.grid  (row = 2, column = 2, sticky = 'nw')
-        self.yMinEntry     = tk.Entry(self.axis_set_popup, width = 10, textvariable = self.yMin)
-        self.yMinEntry.grid  (row = 2, column = 1, sticky = 'nw')
-        # x-axis max
-        self.xMaxLabel     = tk.Label(self.axis_set_popup, text = 'x-axis max', width = 10)
-        self.xMaxLabel.grid  (row = 1, column = 4, sticky = 'nw')
-        self.xMaxEntry     = tk.Entry(self.axis_set_popup, width = 10, textvariable = self.xMax)
-        self.xMaxEntry.grid  (row = 1, column = 3, sticky = 'nw')
-        # x-axis min
-        self.xMinLabel     = tk.Label(self.axis_set_popup, text = 'x-axis min', width = 10)
-        self.xMinLabel.grid  (row = 2, column = 4, sticky = 'nw')
-        self.xMinEntry     = tk.Entry(self.axis_set_popup, width = 10, textvariable = self.xMin)
-        self.xMinEntry.grid  (row = 2, column = 3, sticky = 'nw')
-        self.yMax.trace('w', self.master.CALLBACK_SAVE_AXIS)
-        self.yMin.trace('w', self.master.CALLBACK_SAVE_AXIS)
-        self.xMax.trace('w', self.master.CALLBACK_SAVE_AXIS)
-        self.xMin.trace('w', self.master.CALLBACK_SAVE_AXIS)
-        
-        # Combobox values
-        self.axisCombobox['value'] = self.master.tab_current.names_sensor 
-        
-# ----------------------------  Drag and drop ---------------------------------
-class DnD:
-    def __init__(self, tkroot):
-        self._tkroot = tkroot
-        tkroot.tk.eval('package require tkdnd')
-        # make self an attribute of the parent window for easy access in child classes
-        tkroot.dnd = self
-    
-    def bindsource(self, widget, type=None, command=None, arguments=None, priority=None):
-        '''Register widget as drag source; for details on type, command and arguments, see bindtarget().
-        priority can be a value between 1 and 100, where 100 is the highest available priority (default: 50).
-        If command is omitted, return the current binding for type; if both type and command are omitted,
-        return a list of registered types for widget.'''
-        command = self._generate_callback(command, arguments)
-        tkcmd = self._generate_tkcommand('bindsource', widget, type, command, priority)
-        res = self._tkroot.tk.eval(tkcmd)
-        if type == None:
-            res = res.split()
-        return res
-    
-    def bindtarget(self, widget, type=None, sequence=None, command=None, arguments=None, priority=None):
-        '''Register widget as drop target; type may be one of text/plain, text/uri-list, text/plain;charset=UTF-8
-        (see the man page tkDND for details on other (platform specific) types);
-        sequence may be one of '<Drag>', '<DragEnter>', '<DragLeave>', '<Drop>' or '<Ask>' ;
-        command is the callback associated with the specified event, argument is an optional tuple of arguments
-        that will be passed to the callback; possible arguments include: %A %a %b %C %c %D %d %L %m %T %t %W %X %x %Y %y
-        (see the tkDND man page for details); priority may be a value in the range 1 to 100 ; if there are
-        bindings for different types, the one with the priority value will be proceeded first (default: 50).
-        If command is omitted, return the current binding for type, where sequence defaults to '<Drop>'.
-        If both type and command are omitted, return a list of registered types for widget.'''
-        command = self._generate_callback(command, arguments)
-        tkcmd = self._generate_tkcommand('bindtarget', widget, type, sequence, command, priority)
-        res = self._tkroot.tk.eval(tkcmd)
-        if type == None:
-            res = res.split()
-        return res
-    
-    def clearsource(self, widget):
-        '''Unregister widget as drag source.'''
-        self._tkroot.tk.call('dnd', 'clearsource', widget)
-    
-    def cleartarget(self, widget):
-        '''Unregister widget as drop target.'''
-        self._tkroot.tk.call('dnd', 'cleartarget', widget)
-    
-    def drag(self, widget, actions=None, descriptions=None, cursorwindow=None, command=None, arguments=None):
-        '''Initiate a drag operation with source widget.'''
-        command = self._generate_callback(command, arguments)
-        if actions:
-            if actions[1:]:
-                actions = '-actions {%s}' % ' '.join(actions)
-            else:
-                actions = '-actions %s' % actions[0]
-        if descriptions:
-            descriptions = ['{%s}'%i for i in descriptions]
-            descriptions = '{%s}' % ' '.join(descriptions)
-        if cursorwindow:
-            cursorwindow = '-cursorwindow %s' % cursorwindow
-        tkcmd = self._generate_tkcommand('drag', widget, actions, descriptions, cursorwindow, command)
-        self._tkroot.tk.eval(tkcmd)
-                
-    def _generate_callback(self, command, arguments):
-        '''Register command as tk callback with an optional list of arguments.'''
-        cmd = None
-        if command:
-            cmd = self._tkroot._register(command)
-            if arguments:
-                cmd = '{%s %s}' % (cmd, ' '.join(arguments))
-        return cmd
-    
-    def _generate_tkcommand(self, base, widget, *opts):
-        '''Create the command string that will be passed to tk.'''
-        tkcmd = 'dnd %s %s' % (base, widget)
-        for i in opts:
-            if i != None:
-                tkcmd += ' %s' % i
-        return tkcmd
+
 
 # ----------------------------- Line settings ------------------------------
 class LINE:
@@ -931,117 +855,99 @@ class LINE:
 
     # select line -----------------------------------------------------------
     def line_select(self):
-        select      = SELECTION(self.master)
-        theLineDir  = []
-        id_lines    = []
-        # save selected lines' directories (i.e. labels)
-        for i_dir in select.dirNames:
-            for i_var in select.varNames:
-                dirvar = i_dir  + '\\' + i_var
-                dirvar = dirvar.split('\\')[-3] + ' ' + \
-                         dirvar.split('\\')[-2] + \
-                         dirvar.split('\\')[-1]
-                theLineDir.append (dirvar)
-        
-        # find the corresponding indices
-        for line in theLineDir:
-            id_lines += [i for i, v in 
-                     enumerate(self.master.tab_current.YLabels) if v == line]
+#        select      = SELECTION(self.master)
+#        theLineDir  = []
+#        id_lines    = []
+#        # save selected lines' directories (i.e. labels)
+#        for i_dir in select.dirNames:
+#            for i_var in select.varNames:
+#                dirvar = i_dir  + '\\' + i_var
+#                dirvar = dirvar.split('\\')[-3] + ' ' + \
+#                         dirvar.split('\\')[-2] + \
+#                         dirvar.split('\\')[-1]
+#                theLineDir.append (dirvar)
+#        
+#        # find the corresponding indices
+#        for line in theLineDir:
+#            id_lines += [i for i, v in 
+#                     enumerate(self.master.tab_current.YLabels) if v == line]
+#
+#        return id_lines
+        pass
 
-        return id_lines
 
+## ----------------------------- Customized X axis ---------------------------
+#class CUSTOM_X:
+#    def __init__(self, master):
+#        
+#        self.master = master
+#        self.master.tab_current.custom_x = 0
+#        
+#    def SET_AS_X(self):
+#        if self.master.tab_current.custom_x == 1:
+#            self.master.data_custom_x.UNSET_AS_X()
+#        
+#        if self.master.dirTree.selection() != ():
+#            self.myXAxis_name    = SELECTION(self.master)
+#            
+#        try:
+#            self.myXAxis_name
+#            self.master.varList.itemconfig(self.master.varList.curselection(), 
+#                                           background = 'green')
+#            self.xAxis_data      = LOAD_DOLLAR(self.master, self.myXAxis_name)
+#            print('Customized x axis: ' + self.myXAxis_name.varNames[0])
+#            
+#            self.master.tab_current.custom_x = 1
+#        except AttributeError:
+#            tk.messagebox.showerror('','Select a directory!')
+#            pass
+#        
+#    def UNSET_AS_X(self):
+#        try:
+#            self.master.varList.itemconfig(self.master.data_custom_x.myXAxis_name.sltId_vars, 
+#                                           background = 'white')
+#            self.master.data_custom_x = CUSTOM_X(self.master)
+#            
+#        except AttributeError:
+#            pass
+#        print('X axis: Time')
 
-# ----------------------------- Customized X axis ---------------------------
-class CUSTOM_X:
-    def __init__(self, master):
-        
-        self.master = master
-        self.master.tab_current.custom_x = 0
-        
-    def SET_AS_X(self):
-        if self.master.tab_current.custom_x == 1:
-            self.master.data_custom_x.UNSET_AS_X()
-        
-        if self.master.dirTree.selection() != ():
-            self.myXAxis_name    = SELECTION(self.master)
-            
-        try:
-            self.myXAxis_name
-            self.master.varList.itemconfig(self.master.varList.curselection(), 
-                                           background = 'green')
-            self.xAxis_data      = LOAD_DOLLAR(self.master, self.myXAxis_name)
-            print('Customized x axis: ' + self.myXAxis_name.varNames[0])
-            
-            self.master.tab_current.custom_x = 1
-        except AttributeError:
-            tk.messagebox.showerror('','Select a directory!')
-            pass
-        
-    def UNSET_AS_X(self):
-        try:
-            self.master.varList.itemconfig(self.master.data_custom_x.myXAxis_name.sltId_vars, 
-                                           background = 'white')
-            self.master.data_custom_x = CUSTOM_X(self.master)
-            
-        except AttributeError:
-            pass
-        print('X axis: Time')
-
-# ----------------------------- Reset data  ---------------------------------
-class RESET:
+""" Clear the plot in the current tab """
+def reset_plot(tab):    
+    tab.plotted_vars   = {}     # sensors that have been plotted, no duplicates
+    tab.plot_varobjs   = []     # save plotted sensor objects
+    tab.lns            = []
+    tab.secYPos        = 1      # secondary y axes postion
+    tab.callback_clear_stat()   # clear statistics list
+    tab.clear_del()             # clear DEL list
+    del tab.canvas              # re-create canvas
+    tab.canvas  = tab.callback_create_canvas()
+    del tab.toolbar             # re-create toolbar
+    tab.toolbar = tab.callback_create_toolbar()  
     
-    def __init__(self, myMaster):
-        
-        self.master = myMaster
-        self.tab    = myMaster.tab_current
-        
-    def RESET_PLOT(self):    
-        # clear tab configurations
-        self.tab.names_sensor    = ['All']     # a list, sensors that have been plotted
-        self.tab.Plot_obj_List  = []     # a list, save plot objects
-        self.tab.CALLBACK_CLEAR_STAT()   # clear statistics list
-        plt.close('all')
-        del self.tab.canvas              # re-create canvas
-        self.tab.canvas  = self.tab.CALLBACK_CREATE_CANVAS()
-        del self.tab.toolbar             # re-create toolbar
-        self.tab.toolbar = self.tab.CALLBACK_CREATE_TOOLBAR()  
-        self.tab.canvas.plotCanvas.get_tk_widget().bind("<Button-3>", 
-                                        self.master.CALLBACK_CANVAS_POPUP) 
-        self.tab.lns            = []
-        self.tab.hostFigOrTwinx = []        # plot handles, save hostFig or hostFig.twinx()
-        self.tab.sensor_history = []        # save all sensors in history
-        self.tab.firstTwinx     = 0
-        self.tab.secYPos        = 1         # secondary y axes postion
-        self.tab.YLabels        = []
-        self.tab.canvas.ax.legend(handles = self.tab.lns, 
-                                       loc = 'lower left',
-                                       bbox_to_anchor= (0, 1.00),
-                                       ncol = 3)
-
-        
-        self.stat_val           = []        # save statistics values
-        self.master.CALLBACK_UNSET_AS_X()        
-        self.tab.clear_del()
-        self.tab.DEL = []
-        self.tab.data = []
-        
-    def RESET_READ_FILES(self):
-        self.RESET_PLOT()
-        # clear lists of directories and sensors
-        for i in self.master.dirTree.get_children():
-            self.master.dirTree.delete(i)
-        self.master.varList.delete(0,tk.END)
-        self.master.num_filesInCase = []    # a list, number of files in one case   
-        self.master.percentFileList  = []    # save .% file names of all the loaded variables
-        self.varUnitList            = []    # a list, save variable unit
-        self.master.list_num_vars   = []    # a list, number of variables in each read file
-        self.master.list_len_vars   = []    # a list, length of variables in each read file
-        
-        self.master.ParentDirList   = []    # a List, parent directory, 
-                                    # ...(Parent directory)/Groups/Cases/Files
-        self.master.GroupNameList   = []    # save loaded group names
-        self.master.CaseNameList    = []    # save loaded case names
-        self.master.VarNameList     = []    # save loaded sensor names
+    tab.canvas.plotCanvas.get_tk_widget().bind("<Button-3>", 
+                                    tab.myMaster.CALLBACK_CANVAS_POPUP) 
+    tab.canvas.ax.legend(handles = tab.lns, 
+                                   loc = 'lower left',
+                                   bbox_to_anchor= (0, 1.00),
+                                   ncol = 3)
+    
+""" Clear the loaded data including plot """ 
+def reset_read_files(mainpage):
+    
+    for i_tab in mainpage.tabMenu.tabs():
+        tab_id = mainpage.tabMenu.index(i_tab)
+        if tab_id == 0:
+            reset_plot(mainpage.tab_current)
+        else:
+            mainpage.tabMenu.forget(tab_id)
+    
+#    reset_plot(mainpage.tab_current)
+    
+    for i in mainpage.dirTree.get_children(): # clear lists of directories and sensors
+        mainpage.dirTree.delete(i)
+    mainpage.varList.delete(0,tk.END)
+    mainpage.VarNameList        = []    # save loaded sensor names
       
         
 # ----------------------------- Axis Selection ------------------------------     
@@ -1051,7 +957,7 @@ class SAVE_AXIS:
         self.master     = myMaster
         self.id_axis    = myMaster.axis_popup.axisCombobox.current()
         self.name_axis  = myMaster.axis_popup.axisCombobox.get()
-        self.select     = SELECTION(myMaster)
+#        self.select     = SELECTION(myMaster)
         self.GET_AXIS_LIM()
         
         
@@ -1098,239 +1004,6 @@ class SAVE_AXIS:
                     except ValueError:
                         pass
 
-
-
-
-# ----------------------------- Plot Data -----------------------------------
-class PLOT_DATA():
-    
-
-    
-    def __init__(self, myMaster, myTab, data, select):
-        self.master     = myMaster
-        self.myTab      = myTab
-        self.data       = data
-        self.select     = select
-        self.fig1       = 0
-        self.yMax       = ''
-        self.yMin       = ''
-        self.xMax       = ''
-        self.xMin       = ''    
-        self.myvarNames = self.select.varNames * len(self.select.varNames) \
-                                                * len(self.select.dirNames)
-        self.colors     = ['b', 'r', 'g', 'm', 'y', 'k']
-        self.lines      = ['-', '--', '-.', ':']
-        self.lineMarkers= ['o', '^', 's', '*']
-        
-    def PLOT_T(self, i_data, i_axis, flag_plot, *arg):
-
-        # To be honest, I do not know how to make the following code conciser.
-        # All is to make logic decisions whether to create a primary or secondary 
-        # y axis/axes without overlapping, i.e. to ARRANGE Y AXIS(AXES)
-        # The logic is based on three factors: 
-        # 1. is i_data sensor the first sensor of the current selection object?
-        # 2. has i_data sensor been plotted ever?
-        # 3. is i_data the first sensor of the current tab?
-        
-        # classify y axis ----------------------------------------------------
-
-        if i_data == 0:
-            
-            if flag_plot[i_axis] == 1:
-                
-                if self.myTab.sensor_history == []:
-                    #print('YYY')
-                    pass
-                else:
-#                    print('YYN')
-                    #print(self.myvarNames[i_data])
-                    self.myTab.sensor_history.append(self.myvarNames[i_data])
-                    id_fig = [i for i, x in enumerate(self.myTab.sensor_history) \
-                              if x == self.myvarNames[i_data]][0]
-                    self.fig1 = self.myTab.hostFigOrTwinx[id_fig]
-                    self.myTab.hostFigOrTwinx.append(self.fig1)
-                    self.i_color = len(self.myTab.sensor_history)
-                    
-            else:
-                
-                if self.myTab.sensor_history == []:
-                    #print('YNY')
-                    #print(self.myvarNames[i_data])
-                    self.myTab.sensor_history.append(self.myvarNames[i_data])
-                    self.fig1 = self.myTab.canvas.ax
-                    self.myTab.hostFigOrTwinx.append(self.fig1)
-                    # indices of colors of sensors
-                    self.i_color   = len(self.myTab.sensor_history)
-
-                    
-
-                else:
-                    #print('YNN')
-                    #print(self.myvarNames[i_data])
-                    self.myTab.sensor_history.append(self.myvarNames[i_data])
-                    self.i_color   = len(self.myTab.sensor_history)
-                    self.fig1 = self.myTab.canvas.ax.twinx()
-                    self.myTab.hostFigOrTwinx.append(self.fig1)
-                    #self.i_pos     = len(self.myTab.names_sensor)
-                    self.i_pos  = self.myTab.secYPos
-                    if self.myTab.firstTwinx != 0:
-                        self.fig1.spines['right'].set_position(('outward', 75*(self.i_pos-1))) 
-                    self.myTab.firstTwinx = 1
-                    self.myTab.secYPos += 1
- 
-                    
-        else:
-            
-            if flag_plot[i_axis] == 1:
-                
-                if self.myTab.sensor_history == []:
-                    #print('NYY')
-                    pass
-                else:
-                    #print('NYN')
-                    #print(self.myvarNames[i_data])
-                    self.myTab.sensor_history.append(self.myvarNames[i_data])
-                    id_fig = [i for i, x in enumerate(self.myTab.sensor_history) \
-                              if x == self.myvarNames[i_data]][0]
-                    self.i_color   = len(self.myTab.sensor_history)
-                    self.fig1 = self.myTab.hostFigOrTwinx[id_fig]
-                    self.myTab.hostFigOrTwinx.append(self.fig1)
-            else:
-                
-                if self.myTab.sensor_history == []:
-                    #print('NNY')
-                    pass
-                else:
-                    #print('NNN')
-                    #print(self.myvarNames[i_data])
-                    self.myTab.sensor_history.append(self.myvarNames[i_data])
-                    self.fig1 = self.myTab.canvas.ax.twinx()  
-                    self.myTab.hostFigOrTwinx.append(self.fig1)
-                    self.i_color   = len(self.myTab.sensor_history)
-                    #self.i_pos     = len(self.myTab.names_sensor) 
-                    self.i_pos  = self.myTab.secYPos
-                    if self.myTab.firstTwinx != 0:
-                        self.fig1.spines['right'].set_position(('outward', 75*(self.i_pos-1))) 
-                    self.myTab.firstTwinx = 1
-                    self.myTab.secYPos += 1  
-        
-        # plot ------------------------------------------------------------ 
-        if arg:
-            xData = arg[0].xAxis_data.data_y[0]
-            # when use scatter, self.f_handle = scatter;
-            # when use plot, self.f_handle, = plot !!!
-            self.f_handle = self.fig1.scatter(xData, self.data.data_y[i_data], 
-                          color = self.colors[(self.i_color-1)%len(self.colors)],
-                          linestyle = self.lines[max(0, self.i_color - len(self.colors)) %len(self.lines)],
-                          label = self.select.yLabel[i_data])  
-            self.fig1.set_xlabel(arg[0].myXAxis_name.varNames[0])
-            # scatter has face color and edge color; 
-            self.fig1.set_ylabel(self.select.yLabel[i_data].split('\\')[-1],
-                                 color = self.f_handle.get_facecolor()[0])            
-        else:
-            xData = self.data.data_x[i_data]
-            self.f_handle, = self.fig1.plot(xData, self.data.data_y[i_data], 
-                          color = self.colors[(self.i_color-1)%len(self.colors)],
-                          linestyle = self.lines[max(0, self.i_color - len(self.colors)) %len(self.lines)],
-                          label = self.select.yLabel[i_data])
-            self.fig1.set_xlabel('Time, s')
-            # axis label
-            self.fig1.set_ylabel(self.select.yLabel[i_data].split('\\')[-1],
-                                 color = self.f_handle.get_color())
-           
-            
-            #   calculate max/min
-            x_max, y_max, x_min, y_min = cal_max_min(xData, self.data.data_y[i_data])
-            
-            #   show max & min
-            self._max,   = self.fig1.plot(x_max, y_max, 
-                                     'ko', markersize = 10, fillstyle = 'none')
-            self._max_vline = self.fig1.axvline(x_max,
-                                                ymin = 0, ymax = 1,
-                                                color = 'k', linestyle = '--')
-
-            self._min,   = self.fig1.plot(x_min, y_min, 
-                                     'ko', markersize = 10, fillstyle = 'none')
-            self._min_vline = self.fig1.axvline(x_min,
-                                                ymin = 0, ymax = 1,
-                                                color = 'k', linestyle = '--')
-            #   hide (default)
-            self._max.set_visible(0)
-            self._max_vline.set_visible(0)
-            self._min.set_visible(0)              
-            self._min_vline.set_visible(0)
-
-
-            # grid on
-            self.fig1.grid(alpha = 0.5, linestyle = '--')
-            # y-axis tick format
-            if abs(np.max(self.data.data_y[i_data])) > 10000:
-                ymajor_formatter = tick.FormatStrFormatter('%2.2e')
-            else:
-                ymajor_formatter = tick.FormatStrFormatter('%4.2f')
-            self.fig1.yaxis.set_major_formatter(ymajor_formatter)
-            lowbound = self.fig1.get_ybound()[0]
-            highbound = self.fig1.get_ybound()[1]
-            lowbound, highbound = prettyNum(lowbound, highbound)
-
-            self.fig1.set_yticks(np.linspace(lowbound, highbound, 11))
-      
-
-            def onLimitsChange(axes):
-                a = axes.get_ylim()
-                lowbound, highbound = a[0], a[1]
-                self.fig1.set_yticks(np.linspace(lowbound, highbound, 11))
-            
-            self.fig1.callbacks.connect('ylim_changed', onLimitsChange)
-
-
-            
-    def PLOT_FFT(self, i_data, i_axis, flag_plot, *arg):
-        
-        #   point number of fft
-        nfft    = self.master.NFFTEntry.get()
-        #   overlap
-        ovlp    = self.master.overlapEntry.get()
-        f, PD   = calc_fft(self.data, i_data, nfft, ovlp)
-        
-        self.fig1 = self.myTab.canvas.ax
-
-        self.f_handle, = self.fig1.semilogy(f, PD, 
-                          label = self.select.yLabel[i_data])
-        
-        #   calculate max/min
-        x_max, y_max, x_min, y_min = cal_max_min(f, PD)
-        
-        # max 
-        self._max,   = self.fig1.plot(x_max, y_max,
-                                      'ko', markersize = 10, fillstyle = 'none')
-        self._max_vline = self.fig1.axvline(x_max,
-                                            ymin = 0, ymax = 1,
-                                            color = 'k', linestyle = '--')
-        # min
-        self._min,   = self.fig1.plot(x_min, y_min,
-                                      'ko', markersize = 10, fillstyle = 'none')
-        self._min_vline = self.fig1.axvline(x_min,
-                                            ymin = 0, ymax = 1,
-                                            color = 'k', linestyle = '--')  
-        self._max.set_visible(0)
-        self._max_vline.set_visible(0)
-        self._min.set_visible(0)              
-        self._min_vline.set_visible(0)        
-        
-        # grid on
-        self.fig1.grid(alpha = 0.5, linestyle = '--')
-        # y-axis tick format
-        ymajor_formatter = tick.FormatStrFormatter('%2.2e')
-        self.fig1.yaxis.set_major_formatter(ymajor_formatter)
-        
-        # axis label
-        self.fig1.set_ylabel('Spectral Energy Density')
-        self.fig1.set_xlabel('Frequency, Hz')
-        
-        # if secondary axis
-        if i_axis != 0:
-            self.fig1.spines['right'].set_position(('outward', 75*(i_axis-1))) 
                             
     
     def AXIS_SET(self):
@@ -1346,211 +1019,6 @@ class PLOT_DATA():
             
         self.myTab.canvas.plotCanvas.draw()
     
-
-
-# ----------------------- Calculate FFT ----------------------------
-def calc_fft(data, i_data, NFFT, ovlp):
-    
-    #   default 1024
-    if NFFT == '' or int(NFFT) == 0:
-        NFFT = len(data.data_y[i_data])
-        
-    if int(NFFT) > len(data.data_y[i_data]):
-        tk.messagebox.showerror('Error','NFFT is larger than data length!')
-        
-    else:
-        NFFT = int(NFFT)
-        win_len = NFFT
-        win_overlap = float(ovlp)
-        win_hann = np.hanning(win_len);
-        y = data.data_y[i_data]
-        x = data.data_x[i_data]
-        y -= np.mean(y)         #   remove DC term
-        trd = (y[-1]-y[0])/(x[-1]-x[0])*x + y[0]
-        y -= trd                #   detrend
-        Pxx_den = np.zeros(int(NFFT/2))
-        
-        i_win = 0
-        i     = 0
-        while i_win < (len(y) - win_len):
-            y_seg = y[i_win:i_win + win_len]
-            y_win = win_hann*y_seg
-            Pxx_den += np.power(abs(np.fft.fft(y_win)),2)[1:int(NFFT/2)+1]
-            i_win += int(win_len*win_overlap)
-            i += 1
-        Pxx_den /= i
-        
-        fs = 1/data.step[i_data]
-        f  = fs*np.arange(0,(NFFT/2))/NFFT;        
-        
-        #   scale power density
-        Sw2 = sum(win_hann**2)
-        Pxx_den = 2*Pxx_den/fs/Sw2
-        
-        #   compensation 
-        Pxx_den *= 1.6
-
-        return f, Pxx_den
-
-
-# ----------------------- Calculate statistic data -----------------
-class CALC_STAT:
-    
-    def __init__(self, tab, data):
-        for i_data in range(0, len(data.data_y)):
-            if data.data_x[i_data] != [] and data.data_y[i_data] != []:
-                
-                _mean   = data.data_y[i_data].mean()
-                _max    = data.data_y[i_data].max()
-                _min    = data.data_y[i_data].min()
-                _std    = data.data_y[i_data].std()
-                
-                ind_max = data.data_y[i_data].tolist().index(_max)
-                ind_min = data.data_y[i_data].tolist().index(_min)
-                
-                _t_max   = data.data_x[i_data][ind_max]
-                _t_min   = data.data_x[i_data][ind_min]
-                
-                tab.myMaster.statList.statTree.insert('', tk.END, 
-                                             text = '{:6.3e}'.format(_mean),
-                                             values = ('{:6.3e}'.format(_max),
-                                                       '{:6.3e}'.format(_min),
-                                                       '{:6.3e}'.format(_std),
-                                                       '{0:.2f}'.format(_t_max),
-                                                       '{0:.2f}'.format(_t_min)))
-                
-                tab.stat_val.append([_t_max, _max,
-                                     _t_min, _min,
-                                     _mean,
-                                     _std])
-    
-# -------------------------- Load .$ file ----------------------------------
-class LOAD_DOLLAR:
-    def __init__(self, myMaster, select):
-        self.data_y = []
-        self.data_x = []
-        self.step   = []
-        self.ylabel = select.yLabel
-        self.unit   = []
-        
-        for j_dirName in  select.dirNames:
-            for j_var in range(0, len(select.sltId_vars)):
-                filePrefix = [x for x in os.listdir(j_dirName) if '.$pj' in x.lower()][0].rsplit('.', 1)[-2]
-                fileDir =   j_dirName +  '\\' + \
-                            filePrefix + '.' + \
-                            myMaster.varDict[select.varNames[j_var]].split('.')[-1]
-    
-                if os.path.exists(fileDir):
-                    
-                    print(fileDir + ' Load')
-                    # (id_dataFile) th .% file
-                    dataInfo_obj \
-                    = LOAD_PERCENT(fileDir, myMaster, select.sltId_vars[j_var])
-                    self.step.append(dataInfo_obj.timeStep)
-                    # Change .% file to .$ file
-                    fileDir = fileDir.replace('%', '$')
-
-                    #Load data ------------------------------------------ 
-                    #print(fileName)
-                    fodID = open(fileDir, 'rb');
-                    if dataInfo_obj.dataType == '4':
-                        readMethod = np.float32
-                    else:
-                        readMethod = np.float64
-                        
-                    data = np.fromfile(fodID, readMethod)
-                    y = data[list(range(dataInfo_obj.idx_var_in_file,\
-                                        dataInfo_obj.num_vars*dataInfo_obj.len_vars,\
-                                        dataInfo_obj.num_vars))]
-                    self.data_y.append(y)
-                    x = np.arange(0, 
-                                  dataInfo_obj.timeStep* dataInfo_obj.len_vars, 
-                                  dataInfo_obj.timeStep)
-                    self.data_x.append(x)
-                    
-                    fodID.close();
-                    
-                    unit = myMaster.varUnitList[select.sltId_vars[j_var]]
-                    self.unit.append(unit)
-                    
-                    # if convert unit?
-                    if unit in ['A','A/T', 'A/TT']:
-                        unit_get = myMaster.unitCombobox.get()
-                        if unit_get in ['deg', 'deg/s', 'deg/s2']:
-                            self.data_y[-1] = self.data_y[-1] * 180/np.pi
-                        if unit_get in ['rpm']:
-                            self.data_y[-1] = self.data_y[-1] /2/np.pi*60
-                            
-
-                    
-                else:
-                    print(fileDir + ' does not exist.')
-                    tk.messagebox.showerror('Load .$ error', fileDir + ' does not exist!')
-                    break
-                    self.data_y.append([])
-                    self.data_x.append([])
-                        
-            
-            
-
-# -------------------------- Selection -------------------------------------
-class SELECTION:
-    
-    def __init__(self, myMaster):
-        
-        # select and get the directory
-        self.sltId_wholeDir = myMaster.dirTree.selection();
-        if self.sltId_wholeDir == ():
-            tk.messagebox.showerror('','Please select a directory.')
-            return 0
-        else:
-            self.dirNames   = []
-            for id_dirName in self.sltId_wholeDir:
-                self.dirNames.append(
-                myMaster.dirTree.parent(id_dirName) + '\\' + \
-                myMaster.dirTree.item(id_dirName)['text']
-                );  
-            
-        # select vars in the listbox and get the file names
-        sltId_vars  = myMaster.varList.curselection();
-        self.varNames    = [myMaster.varList.get(i) for i in sltId_vars];
-
-        ''' Re-mapping 
-        The index(or indices) of the selected variable(s) in the filtered list 
-        is not the "real" index(or indices) of that in the total variable list,  
-        so it has to be re-mapped.
-        '''
-        id_vars     = []
-        for i_var in range(0, len(self.varNames)):
-            id_vars.append(myMaster.VarNameList.index(self.varNames[i_var])) 
-                
-        self.sltId_vars  = tuple(id_vars)
-
-        # Variable Unit
-        self.varUnit    = [myMaster.varUnitList[i] for i in self.sltId_vars];
-       
-        # y labels
-        self.yLabel = []   
-        self.CREATE_YLABEL(myMaster)
-        
-        
-        # hold-on checkbox
-        self.hold_on_var = myMaster.hold_on_var.get()
-        
-        
-    # Create labels
-    def CREATE_YLABEL(self, myMaster):
-        for i_dirName in self.dirNames:
-            for i_var in range(0, len(self.sltId_vars)):
-                ylab = i_dirName +'\\'+ \
-                        myMaster.VarNameList[self.sltId_vars[i_var]]
-                ylab = ylab.split('\\')[-3] + ' ' + \
-                       ylab.split('\\')[-2] + \
-                       ylab.split('\\')[-1]
-                self.yLabel.append(ylab)
-            
-    
-
 
 # ----------------------------- Create new lists for statistics -------------
 class CREATE_STAT():
@@ -1597,8 +1065,8 @@ class CREATE_CANVAS():
     def __init__(self, myMaster):
         # Create a canvas to show plots -------------------------------------
 #        page = myMaster.myMaster.master
-#        width = (page.winfo_screenmmwidth() - 40) * 1.2/25.4
-#        height = (page.winfo_screenmmheight() - 60) * 1.2/25.4
+#        width = (page.winfo_screenmmwidth() - 40) /25.4
+#        height = (page.winfo_screenmmheight() - 60) /25.4 *0.9
 #        self.hostFig, self.ax = plt.subplots(figsize = (width, height))
         self.hostFig, self.ax = plt.subplots(figsize = (19, 8), dpi = 60)
         self.hostFig.subplots_adjust(left = 0.08, right = 0.82)
@@ -1613,58 +1081,46 @@ class CREATE_CANVAS():
         
 
 # ----------------------------- Create a New Tab -----------------------------
-class NEW_TAB():
+class NewTab():
     # main = Main
     def __init__(self, main):
         
         self.myMaster       = main
-        self.names_sensor    = ['All']   # a list, sensors that have been plotted, no duplicates
-        self.Plot_obj_List  = []        # a list, save plot objects
-        self.lns            = []        # legends
-        self.hostFigOrTwinx = []        # plot handles, save hostFig or hostFig.twinx()
-        self.sensor_history = []        # save all sensor names in history
-        self.firstTwinx     = 0         # a flag, will be set to 1 if the first secondary y axis is created
+        self.plotted_vars   = {}        # sensors that have been plotted, no duplicates
+        self.lns            = []        # figure handles used to plot legends
         self.secYPos        = 1         # secondary y axes postion
-        self.setX           = 0         # a flag, 0 for time x axis,
+#        self.setX           = 0         # a flag, 0 for time x axis,
                                         #         1 for customized x axis
-        self.YLabels        = []
         self.custom_x       = 0         # 0 for no customized x axis is selected,
                                         # 1 for one sensor is selected
-          
-        self.stat_val       = []        # save statistics values
-        self.DEL            = []        # save DEL
-        self.data           = []        # save plotted data
+        self.plot_varobjs   = []        # save plotted sensor objects
+
         
         # hopefully the maximum number of tabs should not be over 10
-        self.myMaster.num_tabs += 1
         self.tab = tk.Frame(self.myMaster.tabMenu)
-        self.myMaster.tabMenu.add(self.tab, text= 'Tab ' + str(len(self.myMaster.tabMenu.tabs())+1))
+        self.tab.bind("<Double-Button-1>", self.myMaster.callback_del_tab)
+        tabNums = len(self.myMaster.tabMenu.tabs())
+        self.myMaster.tabMenu.add(self.tab, text= 'Tab ' + str(tabNums+1))
         
         # Create a new canvas -------------------------------------
-        self.canvas = self.CALLBACK_CREATE_CANVAS()
+        self.canvas = self.callback_create_canvas()
         self.myMaster.tabMenu.select(self.tab) # Select the created tab, just for convenience
         
         # Create a new navigation toolbar -------------------------
-        self.toolbar = self.CALLBACK_CREATE_TOOLBAR()
-        
-#        # Create new lists for statistics -------------------------
-#        self.statList = self.CALLBACK_CREATE_STAT()      
-        
-
+        self.toolbar = self.callback_create_toolbar()
     
-    def CALLBACK_CREATE_STAT(self):
+    def callback_create_stat(self):
         return CREATE_STAT(self.myMaster.frame3)
     
-    def CALLBACK_CREATE_TOOLBAR(self):
+    def callback_create_toolbar(self):
         return CREATE_TOOLBAR(self.tab, self.canvas)
         
-    def CALLBACK_CREATE_CANVAS(self):
+    def callback_create_canvas(self):
         return CREATE_CANVAS(self)
                 
-    def CALLBACK_CLEAR_STAT(self):
+    def callback_clear_stat(self):
         for item in self.myMaster.statList.statTree.get_children():
             self.myMaster.statList.statTree.delete(item)
-#        self.statList.statTree.delete(*self.statList.statTree.get_children())
             
     def clear_del(self):
         for item in self.myMaster.delTable.get_children():
@@ -1686,41 +1142,10 @@ class NEW_TAB():
         self.tab = tk.Frame(self.myMaster.tabMenu)   
         self.myMaster.tabMenu.add(self.tab, text = '*')
         
-# ------------------------------ Variable Filter -------------------------
-class FILTER():
-    def __init__(self, master, enterVar, varList):
-        var_enter = enterVar.get()
-        filt_List = master.VarNameList
         
-            
-        if var_enter != '':
-            var_enter = [x for x in enterVar.get().split(' ') if x != '']
-            for i_var_enter in var_enter:
-                temp_filt_List = []
-                temp_filt_List = [x for x in filt_List 
-                                  if (i_var_enter.lower() in x.lower() and 
-                                      x not in temp_filt_List)]
-                filt_List = temp_filt_List
-
-                         
-        varList.delete(0, tk.END)
-        for i_word in filt_List:
-            varList.insert(tk.END, i_word)
-            
-        master.varList.see(0)     
-        
-        # This is to hold color for the selected x axis signal
-        if master.tab_current.custom_x == 1:
-            try:
-                master.varList.itemconfig(varList.get(0, tk.END).index(
-                        master.data_custom_x.myXAxis_name.varNames[0]
-                        ),background = 'green')
-            except ValueError:
-                pass
-            
 
 # -------------------------------- Open a file ------------------------------
-class OPEN_FILE:
+class open_file:
     
     def __init__(self, master, fileNames):
         
@@ -1741,10 +1166,9 @@ class OPEN_FILE:
             master.dirTree.insert(groupName, 'end', text = caseName)
             
             if j_file.find('%') != -1:
-                info_pctFile = LOAD_PERCENT(parentDir + '\\' + \
-                                            fileName,
-                                            master)
-                UPDATE_LIST(master, info_pctFile)
+                info_pctFile = load_percent(parentDir + '\\' + \
+                                            fileName)
+                update_varlist(master, info_pctFile)
             else:
                 tk.messagebox.showerror('Error!','Please select .% file(s)!')
                 break
@@ -1752,7 +1176,7 @@ class OPEN_FILE:
             
             
 # ---------------------------- Open a directory ------------------------------
-class OPEN_DIR:
+class open_dir:
     
     def __init__(self, master, folderName):
         
@@ -1774,191 +1198,58 @@ class OPEN_DIR:
                 if  groupName not in self.master.dirTree.get_children():
                     self.master.dirTree.insert('', 'end', groupName, text = groupName)
                 self.master.dirTree.insert(groupName, 'end', text = caseName)                
-                READ_FILES_IN_CASE(self.master, folder)
-                
-        else:
-            
+                read_files_in_folder(self.master, folder)           
+        else:   
             pass
         
         
 
-# -------------------------- Read each file in one case----------------------
-class READ_FILES_IN_CASE:
-    def __init__(self, master, ParentDir_caseName):
+""" Read each file in one case """
+def read_files_in_folder(mainpage, folder):
         
-        fileNames   = os.listdir(ParentDir_caseName)    # all files in the directory
-        
-        # kick out files not with extension .% or .$
-        i_file = 0
-        while i_file < len(fileNames):
-            if ('.%' not in fileNames[i_file]) and \
-               ('.$' not in fileNames[i_file]):
-                fileNames.pop(i_file)
-                i_file -= 1
-            i_file += 1
+    fileNames   = os.listdir(folder)    # all files in the directory
+    
+    """ kick out files not with extension .% or .$ """
+    i_file = 0
+    while i_file < len(fileNames):
+        if ('.%' not in fileNames[i_file]) and \
+           ('.$' not in fileNames[i_file]):
+            fileNames.pop(i_file)
+            i_file -= 1
+        i_file += 1
+    
+    """ access each file .% and .$ """
+    regex_dollarFile  = re.compile(r'(.+\.\%\d+)')  # regular expression of .$ files
+    for i_file in fileNames: 
+        x1 = regex_dollarFile.search(i_file);
+        if x1 != None:                      # if .% file
+            info_pctFile = load_percent(folder + x1.group(1))   
+            update_varlist(mainpage, info_pctFile)
 
-        
-        regex_dollarFile  = re.compile(r'(.+\.\%\d+)')  # regular expression of .$ files
-        master.num_filesInCase.append(int(len(fileNames)/2))
-        
-        for i in range(len(fileNames)):         # access each file .% + .$
-            x1 = regex_dollarFile.search(fileNames[i]);
-            if x1 != None:                      # if .% file
-               #print(x1.group(1))
-                info_pctFile = LOAD_PERCENT(ParentDir_caseName + x1.group(1), master)   
-                UPDATE_LIST(master, info_pctFile)
-
-
-# ------------------- Inserting elements into a target list --------------
-# master, the master of the target list
-# elements, a list of elements(sensor strings) to insert
-class UPDATE_LIST:
-    def __init__(self, master, info_pctFile):
-        
-        master.list_num_vars.append(info_pctFile.num_vars)
-        master.list_len_vars.append(info_pctFile.len_vars)
-
-        #   List variables
-        for i_in_file in range(0,info_pctFile.num_vars):
-
-            # if current variable exists, then skip it, otherwise add it.
-            if info_pctFile.varNames_in_file[i_in_file] in master.VarNameList:
-                master.list_num_vars[-1] -= 1
                 
+""" Update variable list """
+def update_varlist(master, pct_info):
     
-            else:
-                master.VarNameList.append(info_pctFile.varNames_in_file[i_in_file])
-                master.varList.insert(tk.END, info_pctFile.varNames_in_file[i_in_file])   
-                master.percentFileList.append(info_pctFile.fileName.split('.')[-1]) 
-                master.varUnitList.append(info_pctFile.varUnit[i_in_file]) 
-                master.varDict[info_pctFile.varNames_in_file[i_in_file]] = info_pctFile.fileName
-        
-# ---------------------------------- Open .% file -----------------------
-class LOAD_PERCENT:
-    def __init__(self, ParentDir_caseFolder_fileName, master, *arg):
-        
-        self.fileName   = ParentDir_caseFolder_fileName
-        myMaster        = master
-        j_var           = []    # index of variable
-        
-        if arg:
-            j_var       = arg[0]
-        
-        fod = open(self.fileName)
-        fText    = fod.read()
-        
-        #   find data type ! FORMATR*(4/8), 4 for 32 bit, 8 for 64 bit
-        regex_dtp   = re.compile(r'\bRECL\b\s+(\d+)')
-        dTypeText   = regex_dtp.search(fText)
-        self.dataType = dTypeText.group(1)
-        
-        #   TIME STEP
-        regex_step  = re.compile(r'\bSTEP\b\s+(\d+\.\d+[E]?[-+]?\d{1,})')
-        stepText    = regex_step.search(fText)
-        #   time step need to be rounded, otherwise a time length error will occur
-        #   when variable length is long
-        self.timeStep = float('{:2.2f}'.format(float(stepText.group(1))))
-
-        #   rad/s - deg/s - rpm Conversion
-        regex_varUnit   = re.compile(r'\bVARUNIT\b\s+(.*)')
-        varUnitText     = regex_varUnit.search(fText)
-        regex_varUnit2  = re.compile(r'(\S+)')
-        self.varUnit         = regex_varUnit2.findall(varUnitText.group(1))           
-
-
-        #   N DIMENSIONS
-        regex_NDimens   = re.compile(r'\bNDIMENS\b\s+(\d+)')
-        NDimensText     = regex_NDimens.search(fText)
-        self.NDimens    = float(NDimensText.group(1))
-        
-        
-        # Regular expression of variables
-        # Variables could be named in a variaty of rules, so more than one 
-        # regex are needed. As far as I know, the following two cover almost all
-        # cases
-        
-        reg_var1 = r'([\(]?\w+[-\w+]?[\)]?\s*' \
-                                    '[\(]?\w*[-\w+]?[\)]?\s*' \
-                                    '[\(]?\w*[-\w+]?[\)]?\s*' \
-                                    '[\(]?\w*[-\w+]?[\)]?\s*' \
-                                    '[\(]?\w*[-\w+]?[\)]?\s*' \
-                                    '[\(]?\w*[-\w+]?[\)]?\s*' \
-                                    '[\(]?\w*[-\w+]?[\)]?\s*' \
-                                    '[\(]?\w*[-\w+]?[\)]?\s*' \
-                                    '[\(]?\w*[-\w+]?[\)]?\s*' \
-                                    '[\(]?\w*[-\w+]?[\)]?)'
-        reg_var2 = r'\w+|\'\w+\s\w+\''
-        
-        # if there is no axial cross-section, i.e. NDIMENS = 2
-        if self.NDimens == 2:
-            #   find dimension of variables
-            regex_dims  = re.compile(r'\bDIMENS\b\s+(\d+)\s+(\d+)')
-            dim_vars    = regex_dims.search(fText)
-            self.num_vars = int(dim_vars.group(1))   # number of vars
-            self.len_vars = int(dim_vars.group(2))   # length of a var
+    if len(pct_info) == 8:
+        filename, id_var_in_file, vars_in_file, \
+        num_vars, len_vars, datatype, varunit, timestep = \
+        pct_info[0], pct_info[1], pct_info[2], pct_info[3], pct_info[4], \
+        pct_info[5], pct_info[6], pct_info[7]
+    if len(pct_info) == 7:
+        filename, vars_in_file, \
+        num_vars, len_vars, datatype, varunit, timestep = \
+        pct_info[0], pct_info[1], pct_info[2], pct_info[3], pct_info[4], \
+        pct_info[5], pct_info[6]
     
-            #   find variable names
-            regex_vars  = re.compile(r'VARIAB\s(.+)')
-            varText     = regex_vars.search(fText)
-            
-            regex2  = re.compile(reg_var1)
-            self.varNames_in_file = regex2.findall(varText.group(1)) 
-            
-            # in case the found variables do not match the number of variables
-            if len(self.varNames_in_file) != self.num_vars:
-                regex2  = re.compile(reg_var2)
-                self.varNames_in_file = regex2.findall(varText.group(1)) 
-           
-        else:
-            #   find dimension of variables
-            regex_dims  = re.compile(r'\bDIMENS\b\s+(\d+)\s+(\d+)\s+(\d+)')
-            dim_vars    = regex_dims.search(fText)
-            self.num_vars = int(dim_vars.group(1))   # number of vars
-            self.num_axi  = int(dim_vars.group(2))   # number of axial cross-sections
-            self.len_vars = int(dim_vars.group(3))   # length of a var
-            
-            #   find axial values
-            regex_axival    = re.compile(r'\bAXIVAL\b\s+(.+)')
-            axivalText      = regex_axival.search(fText)
-
-            regex_axival2   = re.compile(r'(\d+\.\d+)')
-            self.axival     = regex_axival2.findall(axivalText.group(1))
-
-            #   find variable names
-            regex_vars  = re.compile(r'VARIAB\s(.+)')
-            varText     = regex_vars.search(fText)
-                # this trick could be improved!
-            regex2      = re.compile(reg_var2) 
-            self.varNames_in_file = regex2.findall(varText.group(1)) 
-                # remove single quotes in names 
-            for i_file in range(0, self.num_vars):
-                self.varNames_in_file[i_file] = self.varNames_in_file[i_file].replace('\'', '')
-            
-            # in case the found variables do not match the number of variables
-            if len(self.varNames_in_file) != self.num_vars:
-                regex2  = re.compile(reg_var1)
-                self.varNames_in_file = regex2.findall(varText.group(1)) 
-            
-            # if there is AXIVAR, extend variables and their units
-            varNames_in_file_temp = []
-            varUnit_in_file_temp = []
-            for i_axival in range(0, self.num_axi):
-                for i_var in range(0, self.num_vars):
-                    varNames_in_file_temp.append(self.varNames_in_file[i_var] + \
-                                                 ' (axial = ' + \
-                                                 self.axival[i_axival] + \
-                                                 ')')
-                    varUnit_in_file_temp.append(self.varUnit[i_var])
-            self.num_vars = self.num_axi * self.num_vars
-            self.varNames_in_file = varNames_in_file_temp
-            self.varUnit = varUnit_in_file_temp
-            
-        if j_var != []: 
-            self.idx_var_in_file = self.varNames_in_file.index(myMaster.VarNameList[j_var])    
-        fod.close()
+    #   List variables
+    for i_var in vars_in_file:
+        """ if current variable exists, then skip it, otherwise add it. """
+        if i_var not in master.VarNameList:
+            master.VarNameList.append(i_var)
+            master.varList.insert(tk.END, i_var)   
+            master.varDict[i_var] = filename
         
-        
-# ================================ End of Classes ============================
+""" ====================== End of Functions ======================= """
         
         
         
