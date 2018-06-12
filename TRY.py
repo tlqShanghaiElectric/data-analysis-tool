@@ -55,15 +55,9 @@ class HomePage:
         self.menuBar.add_cascade(label = 'File', menu = self.fileMenu)
         ## "Add file" is temporarily banned
         ## to be fixed...
-<<<<<<< HEAD
         self.fileMenu.add_command(label='Add File', command = self.callback_open_file);  
         self.fileMenu.add_command(label='Add Folder', command = self.callback_open_dir)  
         self.fileMenu.add_command(label='Save', command = self.callback_save)  
-=======
-        self.fileMenu.add_command(label='Add File', command = self.CALLBACK_OPEN_FILE)
-        self.fileMenu.add_command(label='Add Folder', command = self.CALLBACK_OPEN_DIR)  
-        self.fileMenu.add_command(label='Save', command = self.CALLBACK_SAVE)  
->>>>>>> d0ccabc4620743ca03706404509f3fd84632e7e0
         self.fileMenu.add_separator()  
         self.fileMenu.add_command(label='Exit', command = self.CALLBACK_EXIT)  
         
@@ -74,13 +68,11 @@ class HomePage:
         
         
         # --------------------- Main menu frames --------------------------------------
-        self.frame1 = tk.Frame(self.master)
-        self.frame1.grid(row = 1, column = 0, sticky = 'wesn')
-
-        self.frame2 = tk.Frame(self.master)
-        self.frame2.grid(row = 1, column = 1, rowspan = 2)   # figure frame
-
-        self.frame3 = tk.Frame(self.master)
+        self.frame1 = tk.Frame(self.master); self.frame1.grid(row = 1, column = 0, 
+                         sticky = 'wesn')
+        self.frame2 = tk.Frame(self.master); self.frame2.grid(row = 1, column = 1, 
+                         rowspan = 2)   # figure frame
+        self.frame3 = tk.Frame(self.master); 
         self.frame3.grid(row = 0, column = 0, columnspan = 8, sticky = 'w')   # treeview
         
         
@@ -129,16 +121,16 @@ class HomePage:
         
         self.varList         = tk.Listbox(self.frame1, width = 25, height = 15,
                                      selectmode = tk.EXTENDED,
-                                     exportselection=0)
+                                     exportselection=0);
         self.varList.grid      (row = 9, column = 0, sticky = 'NSEW')
         
-        self.varScrolly       = tk.Scrollbar(self.frame1)
+        self.varScrolly       = tk.Scrollbar(self.frame1);
         self.varScrolly.grid    (row = 9, column = 0, 
                                  sticky = 'NSE')
         self.varList.config(yscrollcommand=self.varScrolly.set)
         self.varScrolly.config(command=self.varList.yview)
         
-        self.varScrollx       = tk.Scrollbar(self.frame1, orient=tk.HORIZONTAL)
+        self.varScrollx       = tk.Scrollbar(self.frame1, orient=tk.HORIZONTAL);
         self.varScrollx.grid    (row = 10, column = 0, sticky = 'WES')
         self.varList.config(xscrollcommand=self.varScrollx.set)
         self.varScrollx.config(command=self.varList.xview)
@@ -459,7 +451,7 @@ class HomePage:
     def callback_open_file(self):
         fileNames = filedialog.askopenfilenames(title= "Select a file",
                                                 filetypes = [('.%' , '.%*'),
-                                                             ('all', '.*')])
+                                                             ('all', '.*')]);
         if fileNames is '':
             return
         else:
@@ -1028,214 +1020,6 @@ class SAVE_AXIS:
         self.myTab.canvas.plotCanvas.draw()
     
 
-<<<<<<< HEAD
-=======
-
-# ----------------------- Calculate FFT ----------------------------
-def calc_fft(data, i_data, NFFT, ovlp):
-    
-    #   default 1024
-    if NFFT == '' or int(NFFT) == 0:
-        NFFT = len(data.data_y[i_data])
-        
-    if int(NFFT) > len(data.data_y[i_data]):
-        tk.messagebox.showerror('Error','NFFT is larger than data length!')
-        
-    else:
-        NFFT = int(NFFT)
-        win_len = NFFT
-        win_overlap = float(ovlp)
-        win_hann = np.hanning(win_len)
-        y = data.data_y[i_data]
-        x = data.data_x[i_data]
-        y -= np.mean(y)         #   remove DC term
-        trd = (y[-1]-y[0])/(x[-1]-x[0])*x + y[0]
-        y -= trd                #   detrend
-        Pxx_den = np.zeros(int(NFFT/2))
-        
-        i_win = 0
-        i     = 0
-        while i_win < (len(y) - win_len):
-            y_seg = y[i_win:i_win + win_len]
-            y_win = win_hann*y_seg
-            Pxx_den += np.power(abs(np.fft.fft(y_win)),2)[1:int(NFFT/2)+1]
-            i_win += int(win_len*win_overlap)
-            i += 1
-        Pxx_den /= i
-        
-        fs = 1/data.step[i_data]
-        f  = fs*np.arange(0,(NFFT/2))/NFFT;        
-        
-        #   scale power density
-        Sw2 = sum(win_hann**2)
-        Pxx_den = 2*Pxx_den/fs/Sw2
-        
-        #   compensation 
-        Pxx_den *= 1.6
-
-        return f, Pxx_den
-
-
-# ----------------------- Calculate statistic data -----------------
-class CALC_STAT:
-    
-    def __init__(self, tab, data):
-        for i_data in range(0, len(data.data_y)):
-            if data.data_x[i_data] != [] and data.data_y[i_data] != []:
-                
-                _mean   = data.data_y[i_data].mean()
-                _max    = data.data_y[i_data].max()
-                _min    = data.data_y[i_data].min()
-                _std    = data.data_y[i_data].std()
-                
-                ind_max = data.data_y[i_data].tolist().index(_max)
-                ind_min = data.data_y[i_data].tolist().index(_min)
-                
-                _t_max   = data.data_x[i_data][ind_max]
-                _t_min   = data.data_x[i_data][ind_min]
-                
-                tab.myMaster.statList.statTree.insert('', tk.END, 
-                                             text = '{:6.3e}'.format(_mean),
-                                             values = ('{:6.3e}'.format(_max),
-                                                       '{:6.3e}'.format(_min),
-                                                       '{:6.3e}'.format(_std),
-                                                       '{0:.2f}'.format(_t_max),
-                                                       '{0:.2f}'.format(_t_min)))
-                
-                tab.stat_val.append([_t_max, _max,
-                                     _t_min, _min,
-                                     _mean,
-                                     _std])
-    
-# -------------------------- Load .$ file ----------------------------------
-class LOAD_DOLLAR:
-    def __init__(self, myMaster, select):
-        self.data_y = []
-        self.data_x = []
-        self.step   = []
-        self.ylabel = select.yLabel
-        self.unit   = []
-        
-        for j_dirName in  select.dirNames:
-            for j_var in range(0, len(select.sltId_vars)):
-                filePrefix = [x for x in os.listdir(j_dirName) if '.$pj' in x.lower()][0].rsplit('.', 1)[-2]
-                fileDir =   j_dirName +  '\\' + \
-                            filePrefix + '.' + \
-                            myMaster.varDict[select.varNames[j_var]].split('.')[-1]
-    
-                if os.path.exists(fileDir):
-                    
-                    print(fileDir + ' Load')
-                    # (id_dataFile) th .% file
-                    dataInfo_obj \
-                    = LOAD_PERCENT(fileDir, myMaster, select.sltId_vars[j_var])
-                    self.step.append(dataInfo_obj.timeStep)
-                    # Change .% file to .$ file
-                    fileDir = fileDir.replace('%', '$')
-
-                    #Load data ------------------------------------------ 
-                    #print(fileName)
-                    fodID = open(fileDir, 'rb')
-                    if dataInfo_obj.dataType == '4':
-                        readMethod = np.float32
-                    else:
-                        readMethod = np.float64
-                        
-                    data = np.fromfile(fodID, readMethod)
-                    y = data[list(range(dataInfo_obj.idx_var_in_file,\
-                                        dataInfo_obj.num_vars*dataInfo_obj.len_vars,\
-                                        dataInfo_obj.num_vars))]
-                    self.data_y.append(y)
-                    x = np.arange(0, 
-                                  dataInfo_obj.timeStep* dataInfo_obj.len_vars, 
-                                  dataInfo_obj.timeStep)
-                    self.data_x.append(x)
-                    
-                    fodID.close();
-                    
-                    unit = myMaster.varUnitList[select.sltId_vars[j_var]]
-                    self.unit.append(unit)
-                    
-                    # if convert unit?
-                    if unit in ['A','A/T', 'A/TT']:
-                        unit_get = myMaster.unitCombobox.get()
-                        if unit_get in ['deg', 'deg/s', 'deg/s2']:
-                            self.data_y[-1] = self.data_y[-1] * 180/np.pi
-                        if unit_get in ['rpm']:
-                            self.data_y[-1] = self.data_y[-1] /2/np.pi*60
-                            
-
-                    
-                else:
-                    print(fileDir + ' does not exist.')
-                    tk.messagebox.showerror('Load .$ error', fileDir + ' does not exist!')
-                    break
-                    self.data_y.append([])
-                    self.data_x.append([])
-                        
-            
-            
-
-# -------------------------- Selection -------------------------------------
-class SELECTION:
-    
-    def __init__(self, myMaster):
-        
-        # select and get the directory
-        self.sltId_wholeDir = myMaster.dirTree.selection()
-        if self.sltId_wholeDir == ():
-            tk.messagebox.showerror('','Please select a directory.')
-            return 0
-        else:
-            self.dirNames   = []
-            for id_dirName in self.sltId_wholeDir:
-                self.dirNames.append(
-                myMaster.dirTree.parent(id_dirName) + '\\' + \
-                myMaster.dirTree.item(id_dirName)['text']
-                );  
-            
-        # select vars in the listbox and get the file names
-        sltId_vars  = myMaster.varList.curselection()
-        self.varNames    = [myMaster.varList.get(i) for i in sltId_vars]
-
-        ''' Re-mapping 
-        The index(or indices) of the selected variable(s) in the filtered list 
-        is not the "real" index(or indices) of that in the total variable list,  
-        so it has to be re-mapped.
-        '''
-        id_vars     = []
-        for i_var in range(0, len(self.varNames)):
-            id_vars.append(myMaster.VarNameList.index(self.varNames[i_var])) 
-                
-        self.sltId_vars  = tuple(id_vars)
-
-        # Variable Unit
-        self.varUnit    = [myMaster.varUnitList[i] for i in self.sltId_vars]
-       
-        # y labels
-        self.yLabel = []   
-        self.CREATE_YLABEL(myMaster)
-        
-        
-        # hold-on checkbox
-        self.hold_on_var = myMaster.hold_on_var.get()
-        
-        
-    # Create labels
-    def CREATE_YLABEL(self, myMaster):
-        for i_dirName in self.dirNames:
-            for i_var in range(0, len(self.sltId_vars)):
-                ylab = i_dirName +'\\'+ \
-                        myMaster.VarNameList[self.sltId_vars[i_var]]
-                ylab = ylab.split('\\')[-3] + ' ' + \
-                       ylab.split('\\')[-2] + \
-                       ylab.split('\\')[-1]
-                self.yLabel.append(ylab)
-            
-    
-
-
->>>>>>> d0ccabc4620743ca03706404509f3fd84632e7e0
 # ----------------------------- Create new lists for statistics -------------
 class CREATE_STAT():
     def __init__(self, myMaster):
@@ -1280,20 +1064,11 @@ class CREATE_TOOLBAR():
 class CREATE_CANVAS():
     def __init__(self, myMaster):
         # Create a canvas to show plots -------------------------------------
-<<<<<<< HEAD
 #        page = myMaster.myMaster.master
 #        width = (page.winfo_screenmmwidth() - 40) /25.4
 #        height = (page.winfo_screenmmheight() - 60) /25.4 *0.9
 #        self.hostFig, self.ax = plt.subplots(figsize = (width, height))
         self.hostFig, self.ax = plt.subplots(figsize = (19, 8), dpi = 60)
-=======
-        page = myMaster.myMaster.master
-        width = (page.winfo_screenmmwidth() - 40) / 25.4
-        height = (page.winfo_screenmmheight() - 40) / 25.4 * 0.8
-        print(page.winfo_screenmmwidth(), page.winfo_screenmmheight())
-        self.hostFig, self.ax = plt.subplots(figsize = (width, height))
-        # self.hostFig, self.ax = plt.subplots(figsize = (19, 8), dpi = 60)
->>>>>>> d0ccabc4620743ca03706404509f3fd84632e7e0
         self.hostFig.subplots_adjust(left = 0.08, right = 0.82)
         self.plotCanvas = FigureCanvasTkAgg(self.hostFig, master = myMaster.tab)
         
@@ -1432,7 +1207,6 @@ class open_dir:
 """ Read each file in one case """
 def read_files_in_folder(mainpage, folder):
         
-<<<<<<< HEAD
     fileNames   = os.listdir(folder)    # all files in the directory
     
     """ kick out files not with extension .% or .$ """
@@ -1451,40 +1225,6 @@ def read_files_in_folder(mainpage, folder):
         if x1 != None:                      # if .% file
             info_pctFile = load_percent(folder + x1.group(1))   
             update_varlist(mainpage, info_pctFile)
-=======
-        # kick out files not with extension .% or .$
-        i_file = 0
-        while i_file < len(fileNames):
-            if ('.%' not in fileNames[i_file]) and \
-               ('.$' not in fileNames[i_file]):
-                fileNames.pop(i_file)
-                i_file -= 1
-            i_file += 1
-
-        
-        regex_dollarFile  = re.compile(r'(.+\.\%\d+)')  # regular expression of .$ files
-        master.num_filesInCase.append(int(len(fileNames)/2))
-        
-        for i in range(len(fileNames)):         # access each file .% + .$
-            x1 = regex_dollarFile.search(fileNames[i])
-            if x1 != None:                      # if .% file
-               #print(x1.group(1))
-                info_pctFile = LOAD_PERCENT(ParentDir_caseName + x1.group(1), master)   
-                UPDATE_LIST(master, info_pctFile)
-
-
-# ------------------- Inserting elements into a target list --------------
-# master, the master of the target list
-# elements, a list of elements(sensor strings) to insert
-class UPDATE_LIST:
-    def __init__(self, master, info_pctFile):
-        
-        master.list_num_vars.append(info_pctFile.num_vars)
-        master.list_len_vars.append(info_pctFile.len_vars)
-
-        #   List variables
-        for i_in_file in range(0,info_pctFile.num_vars):
->>>>>>> d0ccabc4620743ca03706404509f3fd84632e7e0
 
                 
 """ Update variable list """
@@ -1515,10 +1255,10 @@ def update_varlist(master, pct_info):
         
 # -------------------------------- Main loop ---------------------------
 if __name__ == '__main__':
-    root = tk.Tk()
-    root.wm_state('zoomed')
-    HomePage(root)
-    root.mainloop()
+    Main = tk.Tk()
+    Main.resizable(width = True, height = True)
+    HomePage(Main)
+    Main.mainloop()
 
            
     
